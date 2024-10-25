@@ -1,37 +1,69 @@
 {
   "node": {
     "nodeApi": {
-      "apiUrl": "http://localhost:9052/",
+      "apiUrl": "http://37.27.198.175:9052/",
       "apiKey": "hello"
     },
     "explorer_url": "https://api-testnet.ergoplatform.com/",
     "networkType": "TESTNET",
-      "nodeAddress": "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe"
+    "nodeAddress": "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe"
   },
   "parameters": {
     "minterAddr": "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe",
     "recipientWallets": [
       "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe",
       "3WzG7rdHxK8inns4Jjj36VPZrBjZ3vvFCNGQXGqN6XGfXJkGSXvr",
-        "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy",
-        "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsJrobkT9kZBVazNLFhdHs2fnou53roUQn3VPjR4VuAYY8BtYjoMuMBW3ixhKCaavNsy96UH62UwLgmv8PTCsxewm2dKGeZgEfnt9ki21oEwK5sWX9zh13SzhV2BY8ss2QUbwXceJUWFG1thdSSirC",
-        "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy"
-        
+      "3WzPLBkvSzdgPnSzY79Lx4xx8GSMQzUMHLe5RobGHw7pd6FprQd8"
     ]
   },
-  "token": {
-    "name": "ProxyToken",
-    "description": "why test on testnet?",
-    "totalAmount": 2000000,
-    "decimals": 5,
-    "tokenId": ""
-  },
+  "tokens": [
+    {
+      "name": "LinearTest",
+      "description": "Linear distribution test token",
+      "totalAmount": 10000000,
+      "decimals": 4,
+      "distribution": {
+        "type": "linear",
+        "tokensPerRound": 1000,
+        "blocksBetweenDispense": 1
+      }
+    },
+    {
+      "name": "LogarithmicTest",
+      "description": "Logarithmic distribution test token",
+      "totalAmount": 10000000,
+      "decimals": 4,
+      "distribution": {
+        "type": "logarithmic",
+        "tokensPerRound": 2000,
+        "blocksBetweenDispense": 1
+      }
+    },
+    {
+      "name": "QuadraticTest",
+      "description": "Quadratic distribution test token",
+      "totalAmount": 10000000,
+      "decimals": 4,
+      "distribution": {
+        "type": "quadratic",
+        "tokensPerRound": 1500,
+        "blocksBetweenDispense": 1
+      }
+    },
+    {
+      "name": "ConstantTest",
+      "description": "Constant distribution test token",
+      "totalAmount": 10000000,
+      "decimals": 4,
+      "distribution": {
+        "type": "constant",
+        "tokensPerRound": 500,
+        "blocksBetweenDispense": 1
+      }
+    }
+  ],
   "distribution": {
-    "tokensPerRound": 100000,
-    "blocksBetweenDispense": 1
-  },
-  "proxy": {
-    "address": "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsLdy5ruSKWcgaBZWfGA5oKontwVXVQqPA44fC7noaqpCRVETARziYGbhJ5M3EAt9EtUp39unEA3WNefJQXLA8RbTEHwZCFQLFzsXVVBHL4MBLqzqud5JKHsjv1vacQ73md1ToTqgQhNx18ZDRWpsD",
-    "contract": "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsLdy5ruSKWcgaBZWfGA5oKontwVXVQqPA44fC7noaqpCRVETARziYGbhJ5M3EAt9EtUp39unEA3WNefJQXLA8RbTEHwZCFQLFzsXVVBHL4MBLqzqud5JKHsjv1vacQ73md1ToTqgQhNx18ZDRWpsD"
+    "maxDuration": 180,
+    "defaultBlocksBetweenDispense": 1
   }
 }

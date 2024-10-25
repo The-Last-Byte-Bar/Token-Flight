@@ -8,7 +8,7 @@ from org.ergoplatform.appkit import Address, ErgoValue, Constants
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load configuration
-with open('ergo.json', 'r') as config_file:
+with open('testnet.json', 'r') as config_file:
     config = json.load(config_file)
 
 # Initialize ErgoAppKit

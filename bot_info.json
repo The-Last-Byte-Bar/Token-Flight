@@ -1,13 +1,41 @@
 {
-  "proxy_contract_address": "32GwNQDjGTwdGYsebsGBJkiAgXuSdn4mBqwzcpx2gLPeKmdPSEMrKJ2yMmiswhnKATdqDG74399kx3gzgQqJsazMSGcQPaJehYmuJ7AnA6kYnxe5j1Yja77Bb4vCZzAw6AnfHDcZmRDF4eXZ7Wpio7GrPBtyYnFctmTMfx2dTdJnDvd8YVJSYZDG8N85noYksh2qfNCqXouCjq6PpzEyMjDb4MhLs3i1wRw1saFuhAokJ1zFeinvn33sULNpbVyQ3g3TPgxy2ebcykjVZhf1fdeAXCrv25ytQaG53ZmoZgvtwuqMyKDM6Nt5YdRSaacG5FuSX4cB2JKGhV3KGrxDsCkPsgBrLNWD8YqhnEc9YS6UCV7vnCHaVz5UaiQAgJdLAN5ZjkXn5Hsn2fAMwx84KT5BtSifVXsno16s9KbXAUZQWahtMnybX279UiXfvmTBMTHCLYHip3dNsEgDsiWpKtofn31xReSeiGFBB9YVRJMxevBW4Y54ehcHy5tirsCZFwGTo1Q4K19JW7k4otXcvphLsEXrJr5qK1SPN8VJLZe8FBE14VskDhM7YsNQaRi4QuZMhPzxQb9J2DjDdQtwDqypEvDp68rGJyhs37PHtfLnmT4FXFCToPkrkKVyufRKqJFeKVVBYuEzjwgEJXWAP6SgjDbKQXiDxzN2zttsoNkeVKMZDK2DE16uDHyGCDCBsQZVpzTqvHSzF32kb7LNVMwgQXKpsmLhMHcAkRobge3s3xyTSqf6kcmwLedcuiyET6sWt9uATZWT4hNvGFX9t3dZvj7",
-  "token_id": "60f671ea598d457bdbdab2166e49b70d84a84b9c9d8f725eb4bddde3fd2d295c",
+  "proxy_contract_address": null,
+  "tokens": {
+    "linear_token": {
+      "token_id": "d66fa6f1e0a9fd41e2bda8eb16caa66320af65c30a63c39cd34bd0d9fd961f21",
+      "distribution_type": "linear",
+      "tokens_per_round": 1000,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "logarithmic_token": {
+      "token_id": "403fee3b972417e731f0e7320c95bbbbec473228965e080ae8c07d08d987c5a0",
+      "distribution_type": "logarithmic",
+      "tokens_per_round": 2000,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "quadratic_token": {
+      "token_id": "0c38ecaefcfb530a2520b0b70c82811079afbd7354a3a3c3653ab5d0a4f90d6d",
+      "distribution_type": "quadratic",
+      "tokens_per_round": 1500,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "constant_token": {
+      "token_id": "cef2e349be43f8d40a0f7bfac0511f2ac625b1d1c57ff43db4888856abb5f99d",
+      "distribution_type": "constant",
+      "tokens_per_round": 500,
+      "decimals": 4,
+      "total_amount": 10000000
+    }
+  },
   "recipient_wallets": [
     "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe",
     "3WzG7rdHxK8inns4Jjj36VPZrBjZ3vvFCNGQXGqN6XGfXJkGSXvr",
-    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy",
-    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsJrobkT9kZBVazNLFhdHs2fnou53roUQn3VPjR4VuAYY8BtYjoMuMBW3ixhKCaavNsy96UH62UwLgmv8PTCsxewm2dKGeZgEfnt9ki21oEwK5sWX9zh13SzhV2BY8ss2QUbwXceJUWFG1thdSSirC",
-    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy"
+    "3WzPLBkvSzdgPnSzY79Lx4xx8GSMQzUMHLe5RobGHw7pd6FprQd8"
   ],
-  "tokens_per_round": 100000,
-  "blocks_between_dispense": 1
+  "blocks_between_dispense": 1,
+  "unlock_height": 1436624,
+  "node_address": "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe"
 }

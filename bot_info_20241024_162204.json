@@ -1,0 +1,46 @@
+{
+  "proxy_contract_address": "2Ax2GBXcRA2t2yBjARki6pC7dpyBTR9PqJmqHGMZDdRkx9bUCrtTn8DGptp8Bf2qQQ6DyHY7Sy9X6Bewvs1g4B4dpw5ZqRLXsn4rVHnYTHRsoZZUq4CB4wbN7j7RyMsWK2gDkavMqQ8p9NjMJ2rTNRDnj3H7PZWprHTH4g41bxT9Pq3MeRgWD1NgovbHkPbP3T6mcoKsXeFwkm9fCem9akXmi9NowddF4V7gBcQkQLFMe3ob1HPY7N44FRVXxLY9eMRFTAFnSBMQs4r2VSJiyk7b2S9wWhEdVci1yP2y8WUqpzbpVY54y6aZXW4b8Yu175JYbbDgyLBzxAyYsxouvYT25gQS4z8SkxURo5i7byuZx59QgePMVMKTHpDvLYzN6ciooKv9V1jwG4FSvtMEMNszCh2b9hmWPdUgAiNwjAsU21xFDHhA2P2BhfbX3v9oiUieQfvV1DTpvd8r4JB9cxeDLx1FfEhs75vCvmr3kt6c2yi1PSgJvMBpC6D6pkrkrT1MTGoaSsu23ZPikq4C8BkGuWSiLcCTjwFBxNHc2VHhymZhgexuquxYYTE8tMTG6U3tbGKEceeKPZEQneoHwwSfGz2qnGbqFk9H7MDQ7fuQRgFogJu28bAdZsFznkuHJ4crfuemk2rMsMprQ2GPquGsdif1DXav3ebpVzqDE3qCvNBuQHRhFTsG1nqTcjTthKudATp9Mj7vFJ7aFLTy4R9bvLjMQsVerSkLdJyZB9prwA6ixXKi3KyAgMcoQAbAFWvm594yY1gKCZEWGtX75iJToyn2wnsuosriZoDEkvpgpwThnQAnh1x8q9WZTFoJXgGdaY7rMKncFTGUZU1oChsK5oAK76yrYtkzwqi7s2ug6JcFfPU8kUG12J5g1yMn1wcFNsETWviyLW7TMVq2nta5oto24hHBar7UdwPNs8FtG6HJcM9NGkGw4u5ugZmW8A5pLWNHKJ5inFEkYxq3Zfc618umTgWDGv4ZVHGPj1aPaBBYb8Y3o4EHQ7sLSjM99ThWupdp7pADZUaGUaEjBCiUhCYCzd5ni8aY45qp2CCnZYMCfR6pb6MQHhrGEXV5GXfwTivHmzeDGBsxXgRcKJyXxvWwTNurZMewvrKAVuQJEj2m2r2aEWXKkSenJSZKS84uB4ych39tqna84cF3AezCaHwa3BpRS1CD1pUTpvP9oFPtmvAsa6PybUciSuiTyFKV6ue5EETCiTE8uqdsWetbRWAKiX5CLvyTdFf6AQjyF2d4RAbL7kTZgE79uhu8dJ9iFYECnNJeAptpue4wBQ7hYduJgLAvZFuNq1EXm8cGrezm1JnxebepHU3ZGCjaw8hUx8g2mpbmJqKaCwHXgRLSwdz219VrLaXJGnJUeFH5Us3sXqzmMxhY3pB3ThFAy3e8N7yEiyxqDaHn19S9sYVMHaPT23CoDkyj7mhkmmC228GTTzibyAdgo3ekadSZwtJ9Snn779iAWL1YeRNS2XQKQ6T1jpWUj2o4mKLVd6qgH8VFbXS78DuPv865SxY7PcYeqMY4ZfcpHgHCAkSS1dturphr",
+  "tokens": {
+    "linear_token": {
+      "token_id": "664edbb70130840a1122a14f7568859ee3f71f9afeef62b7a35143a0314a7c16",
+      "distribution_type": "linear",
+      "tokens_per_round": 1000,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "logarithmic_token": {
+      "token_id": "568af2b14c74be998ca2bf9036d49cf67c429ec6a90747506498813445589d26",
+      "distribution_type": "logarithmic",
+      "tokens_per_round": 2000,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "quadratic_token": {
+      "token_id": "dc7e79d62f7374d118bf35e66b8a90c1b91b9b69a995b771f86558790b5d7a58",
+      "distribution_type": "quadratic",
+      "tokens_per_round": 1500,
+      "decimals": 4,
+      "total_amount": 10000000
+    },
+    "constant_token": {
+      "token_id": "760d66077c98143cb42c3a1476f41edfc70254c6fb6406880b38e0387605bd19",
+      "distribution_type": "constant",
+      "tokens_per_round": 500,
+      "decimals": 4,
+      "total_amount": 10000000
+    }
+  },
+  "recipient_wallets": [
+    "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe",
+    "3WzG7rdHxK8inns4Jjj36VPZrBjZ3vvFCNGQXGqN6XGfXJkGSXvr",
+    "3WzPLBkvSzdgPnSzY79Lx4xx8GSMQzUMHLe5RobGHw7pd6FprQd8",
+    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKqPH9eRC1HBSuFWDtSHB6FVnL3ynN8jnUHrP9HfzB1W5mzpG7Z3ZgSDuZjHWs3QrBzKwCmpf8ansJPoCucQHFv2g4ucBzqNTtzQGGPtqPJwTTf1T7NwwjNCgrMBcJXVJkudt1wazyMorm9VaD7RJ",
+    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsLdy5ruSKWcgaBZWfGA5oKontwVXVQqPA44fC7noaqpCRVETARziYGbhJ5M3EAt9EtUp39unEA3WNefJQXLA8RbTEHwZCFQLFzsXVVBHL4MBLqzqud5JKHsjv1vacQ73md1ToTqgQhNx18ZDRWpsD",
+    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy",
+    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsJrobkT9kZBVazNLFhdHs2fnou53roUQn3VPjR4VuAYY8BtYjoMuMBW3ixhKCaavNsy96UH62UwLgmv8PTCsxewm2dKGeZgEfnt9ki21oEwK5sWX9zh13SzhV2BY8ss2QUbwXceJUWFG1thdSSirC",
+    "Az5bkwHDjaMMy4mrT2JyUZTQpEHuRSqVGNA8XtkBFx3FBEnsiTPD6XqTdZ4CbcLDNv2fLrWh4b3GatsFHdscDNY14SRdoqjbE8PqDGmNqzoppifYgsKCmTnf7hhCP3HMW82P1yrBJqbCmYMKBe3ZiA6UXQ9T1EmrU6mH2QrmF7XuxWTBfnGZnPdzcRNLSFbVYeQkKDccLZbWAb8mwkn3zaE6Mz3FvbQrB5BjUUDHcccYnYuCfEMzHQj739aJrdKVmhRWBy"
+  ],
+  "blocks_between_dispense": 10,
+  "unlock_height": 1436366,
+  "node_address": "3WyZiupQXRBQKrUz7UwKTQTc6kxz1FkzM7zUazKDTQo1xbpJdmoe"
+}
