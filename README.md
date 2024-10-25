@@ -25,7 +25,7 @@ The system is configured using a JSON file. Here's an example configuration (`te
   "node": {
     "nodeApi": {
       "apiUrl": "http://37.27.198.175:9052/",
-      "apiKey": "hello"
+      "apiKey": "hellodev"
     },
     "explorer_url": "https://api-testnet.ergoplatform.com/",
     "networkType": "TESTNET",
