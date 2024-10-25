@@ -160,7 +160,7 @@ Network Type: {config.node.network_type}
         sys.exit(1)
 
 if __name__ == "__main__":
-    try:
+    try: 
         logger.info("Starting script execution...")
         asyncio.run(main())
     except KeyboardInterrupt:
@@ -169,3 +169,4 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         sys.exit(1)
+        
