@@ -2,7 +2,7 @@
 
 A space-themed command-line tool for distributing tokens to Ergo miners. Designed for community token airdrops with style.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 
 ## 🌟 Overview
