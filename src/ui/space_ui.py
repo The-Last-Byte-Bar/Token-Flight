@@ -11,51 +11,14 @@ import select
 import termios
 import tty
 from ui.base_ui import BaseUI
-from art.animations import SpaceAnimator
 
 class SpaceUI(BaseUI):
-    SPACE_ANIMATION = [
-        """
-           🌎
-    　 ✦ 　　　　　 　
-    　　　　　　　    
-      　 　　 ˚
-        　　　　　　　
-           🚀
-        """,
-        """
-           ✦
-    　   　　 🌎　 　
-    　　　　　　　    
-      　 　　 
-        　　　˚　　　
-           🚀
-        """,
-        """
-           ✦
-    　 　　　　 　
-    　　　　　🌎　    
-      　 　　 ˚
-        　　　　　　　
-           🚀
-        """,
-        """
-           ✦
-    　 　　　　 　
-    　　　　　　　    
-      　 　　 🌎
-        　　　　　　　
-           🚀
-        """
-    ]
-
     def __init__(self):
         self.console = Console()
-        self.animator = SpaceAnimator()
-
+        
     def display_help(self):
         """Display tool usage information."""
-        help_text = """[bold yellow]╭─ SIGMANAUTS AIRDROP MISSION GUIDE ─╮[/]
+        help_text = """[bold yellow]╭─ Ergonauts AIRDROP MISSION GUIDE ─╮[/]
 
 [bold cyan]COMMAND FORMAT:[/]
 python airdrop.py <token_name> <amount> [options]
@@ -67,12 +30,18 @@ python airdrop.py <token_name> <amount> [options]
 [bold cyan]OPTIONS:[/]
 • --min-hashrate : Minimum hashrate filter
 • --debug        : Simulation mode, no real transaction
+• --recipient-list: Path to CSV file with recipients
+• --addresses    : Space-separated list of addresses
 
 [bold cyan]EXAMPLES:[/]
 • Test run:
   python airdrop.py ProxyToken 1.0 --debug
 • Live distribution:
   python airdrop.py ProxyToken 1.0
+• From CSV:
+  python airdrop.py ProxyToken 1.0 --recipient-list recipients.csv
+• Specific addresses:
+  python airdrop.py ProxyToken 1.0 --addresses addr1 addr2 addr3
 
 [bold cyan]TIPS FOR SUCCESSFUL MISSION:[/]
 • Always run in debug mode first
@@ -101,40 +70,50 @@ python airdrop.py <token_name> <amount> [options]
         """Display formatted error log."""
         self.console.print(f"[bright_red]✖ [white]{message}[/]")
 
-    def display_wallet_balance(self, token_name: str, erg_balance: float, token_balance: float, decimals: int):
+    def display_wallet_balance(self, token_name: str, erg_balance: float, 
+                             token_balance: float, decimals: int):
         """Display space-themed wallet balance."""
         table = Table(show_header=False, border_style="bright_blue")
         table.add_column("Asset", style="cyan")
         table.add_column("Balance", style="green")
         table.add_row("💰 ERG", f"[bold bright_green]{erg_balance:.4f} ERG[/]")
-        table.add_row(f"🪙 {token_name}", f"[bold bright_yellow]{token_balance:,.{decimals}f} {token_name}[/]")
+        table.add_row(f"🪙 {token_name}", 
+                     f"[bold bright_yellow]{token_balance:,.{decimals}f} {token_name}[/]")
         
-        panel = Panel(table, title="[bold cyan]Current Wallet Balance[/]", border_style="bright_blue")
+        panel = Panel(table, 
+                     title="[bold cyan]Current Wallet Balance[/]", 
+                     border_style="bright_blue")
         self.console.print("\n")
         self.console.print(panel)
         self.console.print("\n")
 
     def display_welcome(self):
-        """Display animated welcome screen."""
+        """Display welcome message with space theme."""
         title = Text()
-        title.append("🌟 SIGMANAUTS ", style="bold yellow")
+        title.append("🌟 ERGONAUTS ", style="bold yellow")
         title.append("TOKEN ", style="bold blue")
         title.append("AIRDROP ", style="bold magenta")
-        title.append("SYSTEM ", style="bold cyan")
+        title.append("MISSION ", style="bold cyan")
         title.append("🌟", style="bold yellow")
 
-        for _ in range(2):
-            for frame in self.SPACE_ANIMATION:
-                self.console.clear()
-                panel = Panel(
-                    Align.center(Text(frame + "\n" + title.plain)),
-                    border_style="bright_blue",
-                    padding=(1, 2)
-                )
-                self.console.print(panel)
-                time.sleep(0.2)
+        welcome_text = """
+             🌎
+         *         *
+    *                  *
+           🚀
+    *                  *
+         *         *
+        """
+        
+        panel = Panel(
+            Align.center(Text(welcome_text + "\n" + title.plain)),
+            border_style="bright_blue",
+            padding=(1, 2)
+        )
         
         self.console.clear()
+        self.console.print(panel)
+        time.sleep(2)
 
     def display_summary(self, token_name: str, recipients_count: int, total_amount: float, 
                        total_erg: float, total_hashrate: float, decimals: int):
@@ -145,6 +124,7 @@ python airdrop.py <token_name> <amount> [options]
             header_style="bold bright_magenta",
             border_style="bright_blue"
         )
+        
         table.add_column("📊 Metric", style="cyan", justify="right")
         table.add_column("📈 Value", style="green", justify="left")
         
@@ -165,26 +145,10 @@ python airdrop.py <token_name> <amount> [options]
             title="[bold yellow]Mission Parameters[/]",
             subtitle="[bold cyan]Ready for Launch[/]"
         )
+        
         self.console.print("\n")
         self.console.print(panel)
         self.console.print("\n")
-
-    def _get_key(self) -> str:
-        """Get a single keypress from user."""
-        if sys.platform == "win32":
-            import msvcrt
-            if msvcrt.kbhit():
-                return msvcrt.getch().decode().lower()
-        else:
-            fd = sys.stdin.fileno()
-            old_settings = termios.tcgetattr(fd)
-            try:
-                tty.setraw(sys.stdin.fileno())
-                ch = sys.stdin.read(1)
-                return ch.lower()
-            finally:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ''
 
     def display_confirmation_prompt(self, seconds: int = 30) -> bool:
         """Display space-themed countdown timer with confirmation prompt."""
@@ -194,16 +158,16 @@ python airdrop.py <token_name> <amount> [options]
             progress_bar = "=" * filled + ">" + " " * (bar_length - filled - 1)
             
             content = Text()
-            content.append("\nLAUNCH SEQUENCE ACTIVE\n", style="bold yellow")
-            content.append(f"\nTime Remaining: {remaining:02d}s\n", style="bright_white")
+            content.append("\n🚨 LAUNCH SEQUENCE ACTIVE 🚨\n", style="bold yellow")
+            content.append(f"\nT-minus: {remaining:02d} seconds\n", style="bright_white")
             content.append(f"\n[{progress_bar}]\n", style="bright_blue")
-            content.append("\nOptions:\n", style="bright_white")
-            content.append("Y - Confirm Launch\n", style="bright_green")
-            content.append("N - Abort Mission", style="bright_red")
+            content.append("\nMission Control Options:\n", style="bright_white")
+            content.append("Y - Confirm Launch 🚀\n", style="bright_green")
+            content.append("N - Abort Mission 🔴", style="bright_red")
             
             return Panel(
                 Align.center(content),
-                title="Mission Control",
+                title="[bold yellow]Mission Control[/]",
                 border_style="bright_blue",
                 padding=(1, 2)
             )
@@ -217,7 +181,7 @@ python airdrop.py <token_name> <amount> [options]
                 while True:
                     elapsed = time.time() - start_time
                     if elapsed >= seconds:
-                        self.console.print("\n[bold red]Launch sequence timed out[/]")
+                        self.console.print("\n[bold red]🔴 Launch sequence timed out[/]")
                         return False
     
                     remaining = int(seconds - elapsed)
@@ -227,10 +191,10 @@ python airdrop.py <token_name> <amount> [options]
                     if select.select([sys.stdin], [], [], 0.1)[0]:
                         key = sys.stdin.read(1).lower()
                         if key == 'y':
-                            self.console.print("\n[bold green]Launch confirmed - Initiating sequence[/]")
+                            self.console.print("\n[bold green]🚀 Launch confirmed - Initiating sequence[/]")
                             return True
                         elif key == 'n':
-                            self.console.print("\n[bold red]Launch aborted by mission control[/]")
+                            self.console.print("\n[bold red]🔴 Launch aborted by mission control[/]")
                             return False
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
@@ -240,7 +204,7 @@ python airdrop.py <token_name> <amount> [options]
             while True:
                 elapsed = time.time() - start_time
                 if elapsed >= seconds:
-                    self.console.print("\n[bold red]Launch sequence timed out[/]")
+                    self.console.print("\n[bold red]🔴 Launch sequence timed out[/]")
                     return False
     
                 remaining = int(seconds - elapsed)
@@ -250,10 +214,10 @@ python airdrop.py <token_name> <amount> [options]
                 if msvcrt.kbhit():
                     key = msvcrt.getch().decode().lower()
                     if key == 'y':
-                        self.console.print("\n[bold green]Launch confirmed - Initiating sequence[/]")
+                        self.console.print("\n[bold green]🚀 Launch confirmed - Initiating sequence[/]")
                         return True
                     elif key == 'n':
-                        self.console.print("\n[bold red]Launch aborted by mission control[/]")
+                        self.console.print("\n[bold red]🔴 Launch aborted by mission control[/]")
                         return False
                 time.sleep(0.1)
 
@@ -274,16 +238,16 @@ python airdrop.py <token_name> <amount> [options]
                 frame = f"""
 [bold yellow]Transmission in Progress[/]
 [bright_white]{progress_bar} {int(progress * 100)}%[/]
-[cyan]Sending tokens to miners...[/]
+[cyan]Sending tokens to recipients...[/]
 """
                 live.update(frame)
                 time.sleep(0.1)
 
     def display_error(self, message: str):
-        """Display error message."""
+        """Display error message with space theme."""
         panel = Panel(
-            f"[bold red]Error: {message}[/]",
-            title="[bold red]Error[/]",
+            f"[bold red]🔴 Error: {message}[/]",
+            title="[bold red]Mission Failed[/]",
             border_style="red"
         )
         self.console.print("\n")
@@ -291,12 +255,15 @@ python airdrop.py <token_name> <amount> [options]
         self.console.print("\n")
 
     def display_success(self, tx_id: str, explorer_url: str):
-        """Display success message."""
+        """Display success message with space theme."""
         panel = Panel(
-            f"""[bold green]Transaction submitted successfully![/]
+            f"""[bold green]🚀 Transaction successfully launched![/]
+
 [bright_white]Transaction ID: [cyan]{tx_id}[/]
-[bright_white]Explorer URL: [blue]{explorer_url}[/]""",
-            title="[bold green]Success[/]",
+[bright_white]Explorer URL: [blue]{explorer_url}[/]
+
+[bold green]Mission Status: [bright_green]Tokens deployed successfully[/]""",
+            title="[bold green]🌟 Mission Accomplished![/]",
             border_style="green"
         )
         self.console.print("\n")
