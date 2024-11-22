@@ -256,11 +256,12 @@ python airdrop.py <token_name> <amount> [options]
 
     def display_success(self, tx_id: str, explorer_url: str):
         """Display success message with space theme."""
+        cleaned_url = explorer_url.replace('"', '')  # Remove any quotes from the URL
         panel = Panel(
             f"""[bold green]🚀 Transaction successfully launched![/]
 
 [bright_white]Transaction ID: [cyan]{tx_id}[/]
-[bright_white]Explorer URL: [blue]{explorer_url}[/]
+[bright_white]Explorer URL: [blue]{cleaned_url}[/]
 
 [bold green]Mission Status: [bright_green]Tokens deployed successfully[/]""",
             title="[bold green]🌟 Mission Accomplished![/]",

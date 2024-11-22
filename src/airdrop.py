@@ -77,8 +77,11 @@ class TokenAirdrop:
             # asyncio.run(self.send_telegram_notification(message))
             pass
 
-    def get_token_data(self, token_name: str) -> Tuple[str, int]:
-        """Get token ID and decimals from supported tokens list."""
+    def get_token_data(self, token_name: str) -> Tuple[Optional[str], int]:
+        """Get token ID and decimals. Returns (None, 9) for ERG."""
+        if token_name.upper() in ['ERG', 'ERGO']:
+            return None, 9  # ERG has 9 decimals
+            
         df = pd.read_csv('https://raw.githubusercontent.com/marctheshark3/Mining-Reward-Tokens/main/supported-tokens.csv')
         token_row = df[df['Token Name'] == token_name]
         if token_row.empty:
@@ -109,22 +112,32 @@ class TokenAirdrop:
             time.sleep(10)
             
             self.ui.log_info("Initializing airdrop mission...")
+            
+            # Check if we're dealing with ERG or a token
+            is_erg = token_name.upper() in ['ERG', 'ERGO']
             token_id, token_decimals = self.get_token_data(token_name)
             
-            token_units = int(amount_per_recipient * (10 ** token_decimals))
-            if token_units <= 0:
-                raise ValueError(f"Token amount too small. Minimum is {1/(10 ** token_decimals)} {token_name}")
+            # Convert amount to smallest unit (nanoERG for ERG, token units for tokens)
+            amount_in_units = int(amount_per_recipient * (10 ** token_decimals))
+            if amount_in_units <= 0:
+                raise ValueError(f"Amount too small. Minimum is {1/(10 ** token_decimals)} {token_name}")
             
             for recipient in recipients:
-                recipient.amount = token_units
+                recipient.amount = amount_in_units
                 
             if not self.validate_recipients(recipients):
                 self.ui.log_error("Invalid recipients configuration")
                 return {"status": "failed", "error": "invalid_recipients"}
     
-            total_token_amount = sum(r.amount for r in recipients)
-            total_erg_needed = self.builder.estimate_transaction_cost(len(recipients))
-            human_readable_total = total_token_amount / (10 ** token_decimals)
+            total_amount = sum(r.amount for r in recipients)
+            
+            # Calculate total ERG needed differently for ERG vs tokens
+            if is_erg:
+                total_erg_needed = total_amount / ERG_TO_NANOERG
+            else:
+                total_erg_needed = self.builder.estimate_transaction_cost(len(recipients))
+                
+            human_readable_total = total_amount / (10 ** token_decimals)
             
             self.ui.display_summary(
                 token_name=token_name,
@@ -135,8 +148,12 @@ class TokenAirdrop:
                 decimals=token_decimals
             )
     
+            # Check balances
             erg_balance, token_balances = self.builder.get_wallet_balances(self.wallet_address)
-            human_readable_balance = token_balances.get(token_id, 0) / (10 ** token_decimals)
+            if is_erg:
+                human_readable_balance = erg_balance
+            else:
+                human_readable_balance = token_balances.get(token_id, 0) / (10 ** token_decimals)
             
             self.ui.display_wallet_balance(
                 token_name=token_name,
@@ -145,11 +162,9 @@ class TokenAirdrop:
                 decimals=token_decimals
             )
     
-            
             if debug:
                 self.ui.log_warning("Debug mode active - No transaction will be created")
                 try:
-                    # Show animations in debug mode
                     self.ui.log_info("Testing animations...")
                     self.animator.launch_animation()
                     self.ui.display_success("DEBUG_TX_ID", "https://explorer.ergoplatform.com/")
@@ -160,28 +175,39 @@ class TokenAirdrop:
                 return {
                     "status": "debug",
                     "recipients": len(recipients),
-                    "total_tokens": human_readable_total,
+                    "total_amount": human_readable_total,
                     "total_erg": total_erg_needed,
                     "total_hashrate": sum(r.hashrate for r in recipients)
                 }
-
     
             if not self.ui.display_confirmation_prompt(30):
                 return {"status": "cancelled", "error": "user_cancelled"}
     
             try:
                 self.ui.log_info("Preparing transaction outputs...")
-                outputs = [
-                    OutputBox(
-                        address=recipient.address,
-                        erg_value=self.min_box_value,
-                        tokens=[{
-                            'tokenId': token_id,
-                            'amount': recipient.amount
-                        }]
-                    )
-                    for recipient in recipients
-                ]
+                
+                # Create outputs differently for ERG vs tokens
+                if is_erg:
+                    outputs = [
+                        OutputBox(
+                            address=recipient.address,
+                            erg_value=recipient.amount / ERG_TO_NANOERG,  # Convert nanoERG to ERG
+                            tokens=None
+                        )
+                        for recipient in recipients
+                    ]
+                else:
+                    outputs = [
+                        OutputBox(
+                            address=recipient.address,
+                            erg_value=self.min_box_value,
+                            tokens=[{
+                                'tokenId': token_id,
+                                'amount': recipient.amount
+                            }]
+                        )
+                        for recipient in recipients
+                    ]
     
                 self.ui.log_info("Initiating transaction...")
                 tx_id = self.builder.create_multi_output_tx(outputs, self.wallet_address)
@@ -198,11 +224,11 @@ class TokenAirdrop:
                 
                 success_msg = f"""
 <b>🚀 Airdrop Mission Complete</b>
-<b>Token</b>: {token_name}
+<b>{token_name}</b>: {token_name}
 <b>Recipients</b>: {len(recipients)}
 <b>Amount per recipient</b>: {amount_per_recipient:,.{token_decimals}f} {token_name}
 <b>Total Amount</b>: {human_readable_total:,.{token_decimals}f} {token_name}
-<b>Total ERG</b>: {total_erg_needed:,.4f} ERG
+<b>Total ERG Cost</b>: {total_erg_needed:,.4f} ERG
 <b>Total Hashrate</b>: {sum(r.hashrate for r in recipients):,.0f}
 <b>Transaction</b>: <a href="{explorer_link}">{tx_id[:6]}...{tx_id[-6:]}</a>
 """
@@ -226,8 +252,8 @@ class TokenAirdrop:
             return {"status": "failed", "error": str(e)}
 
 def main():
-    parser = argparse.ArgumentParser(description='Airdrop tokens to recipients.')
-    parser.add_argument('token_name', help='Name of token to airdrop')
+    parser = argparse.ArgumentParser(description='Airdrop ERG or tokens to recipients.')
+    parser.add_argument('token_name', help='Name of token to airdrop (use "ERG" for Ergo coin)')
     parser.add_argument('amount_per_recipient', type=float, help='Amount per recipient')
     parser.add_argument('--min-hashrate', type=float, default=0, help='Minimum hashrate filter')
     parser.add_argument('--debug', action='store_true', help='Run in debug mode')
