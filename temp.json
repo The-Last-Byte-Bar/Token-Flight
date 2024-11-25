@@ -1,0 +1,7 @@
+{
+  "name": "MyToken",
+  "description": "My awesome token on Ergo",
+  "amount": 1000000,
+  "decimals": 2,
+  "register_list": ["optional", "register", "data"]
+}
