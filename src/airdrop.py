@@ -15,6 +15,7 @@ from multi_output_builder import MultiOutputBuilder, OutputBox
 from ui.space_ui import SpaceUI
 from recipient_manager import RecipientManager, AirdropRecipient
 from art.animations import SpaceAnimation
+from token_distributor import TokenDistributor, DistributionConfig
 
 # Constants
 ERG_TO_NANOERG = 1e9
@@ -47,6 +48,7 @@ class TokenAirdrop:
         
         self.ui = SpaceUI()
         self.animator = SpaceAnimation(self.ui.console)
+        self.distributor = TokenDistributor()
         
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
@@ -74,8 +76,7 @@ class TokenAirdrop:
 
     def send_telegram_message_sync(self, message: str):
         if self.telegram_token:
-            # asyncio.run(self.send_telegram_notification(message))
-            pass
+            asyncio.run(self.send_telegram_notification(message))
 
     def get_token_data(self, token_name: str) -> Tuple[Optional[str], int]:
         """Get token ID and decimals. Returns (None, 9) for ERG."""
@@ -91,20 +92,37 @@ class TokenAirdrop:
         decimals = int(token_row['Token decimals'].values[0])
         return token_id, decimals
 
-    def validate_recipients(self, recipients: List[AirdropRecipient]) -> bool:
-        if not recipients:
-            self.logger.error("No recipients provided")
-            return False
+    def prepare_distribution(self, token_name: str, recipients: List[AirdropRecipient],
+                           total_amount: Optional[float] = None,
+                           amount_per_recipient: Optional[float] = None) -> List[AirdropRecipient]:
+        """Prepare token distribution using the TokenDistributor."""
+        token_id, decimals = self.get_token_data(token_name)
         
-        total_amount = sum(r.amount for r in recipients)
-        if total_amount <= 0:
-            self.logger.error("Total airdrop amount must be greater than 0")
-            return False
+        # Create distribution config
+        config = DistributionConfig(
+            token_name=token_name,
+            total_amount=total_amount,
+            amount_per_recipient=amount_per_recipient,
+            decimals=decimals,
+            min_amount=self.min_box_value if token_name.upper() in ['ERG', 'ERGO'] else 1
+        )
+        
+        # Calculate distribution amounts
+        amounts = self.distributor.calculate_distribution(
+            config=config,
+            recipient_count=len(recipients)
+        )
+        
+        # Update recipient amounts
+        for recipient, amount in zip(recipients, amounts):
+            recipient.amount = amount
             
-        return True
+        return recipients
 
-    def execute_airdrop(self, token_name: str, amount_per_recipient: float, 
-                       recipients: List[AirdropRecipient], debug: bool = True) -> Dict:
+    def execute_airdrop(self, token_name: str, recipients: List[AirdropRecipient], 
+                       total_amount: Optional[float] = None,
+                       amount_per_recipient: Optional[float] = None,
+                       debug: bool = True) -> Dict:
         try:
             self.ui.display_welcome()
             self.ui.display_assumptions()
@@ -117,32 +135,37 @@ class TokenAirdrop:
             is_erg = token_name.upper() in ['ERG', 'ERGO']
             token_id, token_decimals = self.get_token_data(token_name)
             
-            # Convert amount to smallest unit (nanoERG for ERG, token units for tokens)
-            amount_in_units = int(amount_per_recipient * (10 ** token_decimals))
-            if amount_in_units <= 0:
-                raise ValueError(f"Amount too small. Minimum is {1/(10 ** token_decimals)} {token_name}")
+            # Prepare distribution
+            recipients = self.prepare_distribution(
+                token_name=token_name,
+                recipients=recipients,
+                total_amount=total_amount,
+                amount_per_recipient=amount_per_recipient
+            )
             
-            for recipient in recipients:
-                recipient.amount = amount_in_units
-                
-            if not self.validate_recipients(recipients):
-                self.ui.log_error("Invalid recipients configuration")
-                return {"status": "failed", "error": "invalid_recipients"}
-    
-            total_amount = sum(r.amount for r in recipients)
+            # Preview distribution
+            preview = self.distributor.preview_distribution(
+                config=DistributionConfig(
+                    token_name=token_name,
+                    total_amount=total_amount,
+                    amount_per_recipient=amount_per_recipient,
+                    decimals=token_decimals
+                ),
+                recipient_count=len(recipients)
+            )
             
-            # Calculate total ERG needed differently for ERG vs tokens
+            total_amount = preview['total_amount']
+            
+            # Calculate total ERG needed
             if is_erg:
-                total_erg_needed = total_amount / ERG_TO_NANOERG
+                total_erg_needed = total_amount
             else:
                 total_erg_needed = self.builder.estimate_transaction_cost(len(recipients))
-                
-            human_readable_total = total_amount / (10 ** token_decimals)
             
             self.ui.display_summary(
                 token_name=token_name,
                 recipients_count=len(recipients),
-                total_amount=human_readable_total,
+                total_amount=total_amount,
                 total_erg=total_erg_needed,
                 total_hashrate=sum(r.hashrate for r in recipients),
                 decimals=token_decimals
@@ -175,9 +198,10 @@ class TokenAirdrop:
                 return {
                     "status": "debug",
                     "recipients": len(recipients),
-                    "total_amount": human_readable_total,
+                    "total_amount": total_amount,
                     "total_erg": total_erg_needed,
-                    "total_hashrate": sum(r.hashrate for r in recipients)
+                    "total_hashrate": sum(r.hashrate for r in recipients),
+                    "distribution_preview": preview
                 }
     
             if not self.ui.display_confirmation_prompt(30):
@@ -191,7 +215,7 @@ class TokenAirdrop:
                     outputs = [
                         OutputBox(
                             address=recipient.address,
-                            erg_value=recipient.amount / ERG_TO_NANOERG,  # Convert nanoERG to ERG
+                            erg_value=recipient.amount / ERG_TO_NANOERG,
                             tokens=None
                         )
                         for recipient in recipients
@@ -226,8 +250,7 @@ class TokenAirdrop:
 <b>🚀 Airdrop Mission Complete</b>
 <b>{token_name}</b>: {token_name}
 <b>Recipients</b>: {len(recipients)}
-<b>Amount per recipient</b>: {amount_per_recipient:,.{token_decimals}f} {token_name}
-<b>Total Amount</b>: {human_readable_total:,.{token_decimals}f} {token_name}
+<b>Total Amount</b>: {total_amount:,.{token_decimals}f} {token_name}
 <b>Total ERG Cost</b>: {total_erg_needed:,.4f} ERG
 <b>Total Hashrate</b>: {sum(r.hashrate for r in recipients):,.0f}
 <b>Transaction</b>: <a href="{explorer_link}">{tx_id[:6]}...{tx_id[-6:]}</a>
@@ -238,7 +261,8 @@ class TokenAirdrop:
                     "status": "completed",
                     "tx_id": tx_id,
                     "recipients": len(recipients),
-                    "explorer_url": explorer_link
+                    "explorer_url": explorer_link,
+                    "distribution_preview": preview
                 }
     
             except Exception as e:
@@ -254,7 +278,12 @@ class TokenAirdrop:
 def main():
     parser = argparse.ArgumentParser(description='Airdrop ERG or tokens to recipients.')
     parser.add_argument('token_name', help='Name of token to airdrop (use "ERG" for Ergo coin)')
-    parser.add_argument('amount_per_recipient', type=float, help='Amount per recipient')
+    
+    # Add mutually exclusive group for amount specification
+    amount_group = parser.add_mutually_exclusive_group(required=True)
+    amount_group.add_argument('--total-amount', type=float, help='Total amount to distribute')
+    amount_group.add_argument('--amount-per-recipient', type=float, help='Amount per recipient')
+    
     parser.add_argument('--min-hashrate', type=float, default=0, help='Minimum hashrate filter')
     parser.add_argument('--debug', action='store_true', help='Run in debug mode')
     parser.add_argument('--recipient-list', help='Path to CSV file with recipients')
@@ -267,14 +296,15 @@ def main():
         if args.recipient_list:
             recipients = RecipientManager.from_csv(args.recipient_list)
         elif args.addresses:
-            recipients = RecipientManager.from_list(args.addresses, args.amount_per_recipient)
+            recipients = RecipientManager.from_list(args.addresses)
         else:
             recipients = RecipientManager.from_miners(args.min_hashrate)
         
         result = airdrop.execute_airdrop(
             token_name=args.token_name,
-            amount_per_recipient=args.amount_per_recipient,
             recipients=recipients,
+            total_amount=args.total_amount,
+            amount_per_recipient=args.amount_per_recipient,
             debug=args.debug
         )
         
