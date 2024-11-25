@@ -1,7 +1,0 @@
-{
-  "name": "COCKMEMETUM",
-  "description": "What goes up, must come down - Not your average pump and dump",
-  "amount": 8008135,
-  "decimals": 4,
-   register_list=["wen dump", "ser", "ngmi"]
-}
