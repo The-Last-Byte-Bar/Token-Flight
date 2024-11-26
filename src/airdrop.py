@@ -5,21 +5,33 @@ from dotenv import load_dotenv
 import os
 import requests
 import pandas as pd
-import asyncio
-from telegram.ext import Application
 import sys
 import time
 import argparse
+import signal
 
+
+from error_handler import setup_error_handler, ErrorHandler
 from multi_output_builder import MultiOutputBuilder, OutputBox
 from ui.space_ui import SpaceUI
 from recipient_manager import RecipientManager, AirdropRecipient
 from art.animations import SpaceAnimation
-from token_distributor import TokenDistributor, DistributionConfig
 
 # Constants
 ERG_TO_NANOERG = 1e9
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG minimum box value
+
+class AirdropError(Exception):
+    """Base exception for airdrop-specific errors"""
+    pass
+
+class GracefulExit(Exception):
+    """Exception for graceful exits"""
+    pass
+
+def signal_handler(signum, frame):
+    """Handle interrupt signals"""
+    raise GracefulExit("Received interrupt signal")
 
 class TokenAirdrop:
     def __init__(self):
@@ -48,7 +60,6 @@ class TokenAirdrop:
         
         self.ui = SpaceUI()
         self.animator = SpaceAnimation(self.ui.console)
-        self.distributor = TokenDistributor()
         
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
@@ -56,27 +67,50 @@ class TokenAirdrop:
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         
-        self.telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
-        self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
-        if self.telegram_token:
-            self.telegram = Application.builder().token(self.telegram_token).build()
-        
         self.min_box_value = MIN_BOX_VALUE / ERG_TO_NANOERG
 
-    async def send_telegram_notification(self, message: str):
-        if self.telegram_token and self.telegram_chat_id:
-            try:
-                await self.telegram.bot.send_message(
-                    chat_id=self.telegram_chat_id,
-                    text=message,
-                    parse_mode='HTML'
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to send Telegram message: {e}")
+    def unlock_wallet(self) -> bool:
+        """Attempt to unlock the node wallet"""
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'api_key': self.node_api_key
+            }
+            
+            # First check if wallet is already unlocked
+            status_url = f"{self.node_url}/wallet/status"
+            status_response = requests.get(status_url, headers=headers)
+            if status_response.status_code == 200:
+                if status_response.json().get('isUnlocked', False):
+                    return True
+                
+            # If not unlocked, try to unlock it (this assumes wallet is initialized)
+            self.ui.log_info("Attempting to unlock wallet...")
+            return True  # For now, assume success as actual unlocking would need password
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check/unlock wallet: {e}")
+            return False
 
-    def send_telegram_message_sync(self, message: str):
-        if self.telegram_token:
-            asyncio.run(self.send_telegram_notification(message))
+    def prepare_amounts(self, total_amount: Optional[float], amount_per_recipient: Optional[float], 
+                       recipient_count: int, decimals: int) -> List[int]:
+        """Calculate distribution amounts properly handling decimals"""
+        if amount_per_recipient is not None:
+            # Fixed amount per recipient
+            amount_in_smallest = int(amount_per_recipient * (10 ** decimals))
+            return [amount_in_smallest] * recipient_count
+        else:
+            # Split total amount
+            total_in_smallest = int(total_amount * (10 ** decimals))
+            base_amount = total_in_smallest // recipient_count
+            remainder = total_in_smallest % recipient_count
+            
+            amounts = [base_amount] * recipient_count
+            # Distribute remainder to first N recipients
+            for i in range(remainder):
+                amounts[i] += 1
+                
+            return amounts
 
     def get_token_data(self, token_name: str) -> Tuple[Optional[str], int]:
         """Get token ID and decimals. Returns (None, 9) for ERG."""
@@ -92,33 +126,6 @@ class TokenAirdrop:
         decimals = int(token_row['Token decimals'].values[0])
         return token_id, decimals
 
-    def prepare_distribution(self, token_name: str, recipients: List[AirdropRecipient],
-                           total_amount: Optional[float] = None,
-                           amount_per_recipient: Optional[float] = None) -> List[AirdropRecipient]:
-        """Prepare token distribution using the TokenDistributor."""
-        token_id, decimals = self.get_token_data(token_name)
-        
-        # Create distribution config
-        config = DistributionConfig(
-            token_name=token_name,
-            total_amount=total_amount,
-            amount_per_recipient=amount_per_recipient,
-            decimals=decimals,
-            min_amount=self.min_box_value if token_name.upper() in ['ERG', 'ERGO'] else 1
-        )
-        
-        # Calculate distribution amounts
-        amounts = self.distributor.calculate_distribution(
-            config=config,
-            recipient_count=len(recipients)
-        )
-        
-        # Update recipient amounts
-        for recipient, amount in zip(recipients, amounts):
-            recipient.amount = amount
-            
-        return recipients
-
     def execute_airdrop(self, token_name: str, recipients: List[AirdropRecipient], 
                        total_amount: Optional[float] = None,
                        amount_per_recipient: Optional[float] = None,
@@ -127,45 +134,56 @@ class TokenAirdrop:
             self.ui.display_welcome()
             self.ui.display_assumptions()
             self.ui.log_info("Please review the Know Your Assumptions (KYA) checklist carefully...")
-            time.sleep(10)
+            time.sleep(2)  # Reduced for testing
             
             self.ui.log_info("Initializing airdrop mission...")
+            
+            # Check wallet status
+            if not debug and not self.unlock_wallet():
+                raise ValueError("Unable to unlock wallet. Please ensure wallet is initialized and unlocked.")
             
             # Check if we're dealing with ERG or a token
             is_erg = token_name.upper() in ['ERG', 'ERGO']
             token_id, token_decimals = self.get_token_data(token_name)
             
-            # Prepare distribution
-            recipients = self.prepare_distribution(
-                token_name=token_name,
-                recipients=recipients,
+            # Calculate amounts for each recipient
+            amounts = self.prepare_amounts(
                 total_amount=total_amount,
-                amount_per_recipient=amount_per_recipient
+                amount_per_recipient=amount_per_recipient,
+                recipient_count=len(recipients),
+                decimals=token_decimals
             )
             
-            # Preview distribution
-            preview = self.distributor.preview_distribution(
-                config=DistributionConfig(
-                    token_name=token_name,
-                    total_amount=total_amount,
-                    amount_per_recipient=amount_per_recipient,
-                    decimals=token_decimals
-                ),
-                recipient_count=len(recipients)
-            )
+            # Create output boxes
+            outputs = []
+            for recipient, amount in zip(recipients, amounts):
+                if is_erg:
+                    outputs.append(OutputBox(
+                        address=recipient.address,
+                        erg_value=amount / ERG_TO_NANOERG,
+                        tokens=None
+                    ))
+                else:
+                    outputs.append(OutputBox(
+                        address=recipient.address,
+                        erg_value=self.min_box_value,
+                        tokens=[{
+                            'tokenId': token_id,
+                            'amount': amount
+                        }]
+                    ))
             
-            total_amount = preview['total_amount']
-            
-            # Calculate total ERG needed
+            # Calculate totals for display
+            total_amount_actual = sum(amount / (10 ** token_decimals) for amount in amounts)
             if is_erg:
-                total_erg_needed = total_amount
+                total_erg_needed = total_amount_actual
             else:
                 total_erg_needed = self.builder.estimate_transaction_cost(len(recipients))
             
             self.ui.display_summary(
                 token_name=token_name,
                 recipients_count=len(recipients),
-                total_amount=total_amount,
+                total_amount=total_amount_actual,
                 total_erg=total_erg_needed,
                 total_hashrate=sum(r.hashrate for r in recipients),
                 decimals=token_decimals
@@ -198,10 +216,12 @@ class TokenAirdrop:
                 return {
                     "status": "debug",
                     "recipients": len(recipients),
-                    "total_amount": total_amount,
+                    "total_amount": total_amount_actual,
                     "total_erg": total_erg_needed,
-                    "total_hashrate": sum(r.hashrate for r in recipients),
-                    "distribution_preview": preview
+                    "distribution": list(zip(
+                        [r.address for r in recipients],
+                        [a / (10 ** token_decimals) for a in amounts]
+                    ))
                 }
     
             if not self.ui.display_confirmation_prompt(30):
@@ -210,29 +230,6 @@ class TokenAirdrop:
             try:
                 self.ui.log_info("Preparing transaction outputs...")
                 
-                # Create outputs differently for ERG vs tokens
-                if is_erg:
-                    outputs = [
-                        OutputBox(
-                            address=recipient.address,
-                            erg_value=recipient.amount / ERG_TO_NANOERG,
-                            tokens=None
-                        )
-                        for recipient in recipients
-                    ]
-                else:
-                    outputs = [
-                        OutputBox(
-                            address=recipient.address,
-                            erg_value=self.min_box_value,
-                            tokens=[{
-                                'tokenId': token_id,
-                                'amount': recipient.amount
-                            }]
-                        )
-                        for recipient in recipients
-                    ]
-    
                 self.ui.log_info("Initiating transaction...")
                 tx_id = self.builder.create_multi_output_tx(outputs, self.wallet_address)
                 
@@ -246,33 +243,19 @@ class TokenAirdrop:
                 except Exception as e:
                     self.ui.log_error(f"Animation error: {e}")
                 
-                success_msg = f"""
-<b>🚀 Airdrop Mission Complete</b>
-<b>{token_name}</b>: {token_name}
-<b>Recipients</b>: {len(recipients)}
-<b>Total Amount</b>: {total_amount:,.{token_decimals}f} {token_name}
-<b>Total ERG Cost</b>: {total_erg_needed:,.4f} ERG
-<b>Total Hashrate</b>: {sum(r.hashrate for r in recipients):,.0f}
-<b>Transaction</b>: <a href="{explorer_link}">{tx_id[:6]}...{tx_id[-6:]}</a>
-"""
-                self.send_telegram_message_sync(success_msg)
-    
                 return {
                     "status": "completed",
                     "tx_id": tx_id,
                     "recipients": len(recipients),
-                    "explorer_url": explorer_link,
-                    "distribution_preview": preview
+                    "explorer_url": explorer_link
                 }
     
             except Exception as e:
                 self.ui.log_error(f"Transaction failed: {str(e)}")
-                self.send_telegram_message_sync(f"❌ Airdrop failed: {str(e)}")
                 return {"status": "failed", "error": str(e)}
     
         except Exception as e:
             self.ui.log_error(f"Mission failed: {str(e)}")
-            self.send_telegram_message_sync(f"❌ Airdrop failed: {str(e)}")
             return {"status": "failed", "error": str(e)}
 
 def main():

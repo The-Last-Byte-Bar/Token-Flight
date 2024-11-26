@@ -1,0 +1,13 @@
+{
+    "distributions": [
+        {
+            "token_name": "btcSHARK",
+            "amount_per_recipient": 10
+        },
+        {
+            "token_name": "love",
+            "amount_per_recipient": 1
+        }
+        
+    ]
+}
