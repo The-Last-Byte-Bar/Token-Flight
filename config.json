@@ -1,0 +1,21 @@
+{
+    "distributions": [
+        {
+            "token_name": "btcSHARK",
+            "amount_per_recipient": 69
+        },
+        {
+            "token_name": "love",
+            "amount_per_recipient": 1
+        },
+        {
+            "token_name": "LASTBYTE",
+            "amount_per_recipient": 500
+        },
+        {
+            "token_name": "SIGMANAUTSMININGPOOL",
+            "total_amount": 1000000
+        }
+        
+    ]
+}
