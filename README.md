@@ -1,4 +1,4 @@
-# Ergo Token Airdrop Tool
+# Token Flight
 
 A Python-based tool for airdropping tokens on the Ergo blockchain. Supports both single-token and multi-token airdrops.
 
@@ -23,8 +23,8 @@ A Python-based tool for airdropping tokens on the Ergo blockchain. Supports both
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-repo/ergonaut-airdrop.git
-cd ergonaut-airdrop
+git clone https://github.com/last-byte-bar/token-flight.git
+cd token-flight
 ```
 
 2. Create and activate virtual environment:
