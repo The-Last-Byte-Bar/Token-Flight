@@ -1,121 +1,184 @@
-# 🚀 Ergonaut Airdrop
-A space-themed command-line tool for distributing tokens to Ergo miners. Designed for community token airdrops with style.
+# Ergo Token Airdrop Tool
 
-![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+A Python-based tool for airdropping tokens on the Ergo blockchain. Supports both single-token and multi-token airdrops.
 
-## 🌟 Overview
-Ergonaut Airdrop is a mission control center for token distribution on the Ergo blockchain. It provides a user-friendly interface for sending tokens to miners, complete with real-time progress tracking and space-themed visualizations.
+## Features
 
-### ✨ Features
-- Interactive space-themed CLI interface
-- Real-time transaction progress tracking
-- Support for multiple token types
-- Miner filtering based on hashrate
-- Debug/simulation mode for testing
-- Rich terminal visualizations
-- Wallet balance monitoring
-- Transaction confirmation system
+- Single token airdrops
+- Multi-token airdrops
+- Support for both node wallet and mnemonic signing
+- Flexible recipient sources (miners/CSV/JSON/direct address)
+- Amount distribution by total amount or per-recipient amount
+- Transaction preview with dry-run option
+- Telegram notifications (optional)
+- Rich console UI with progress indicators
 
-## 🛸 Installation
+## Prerequisites
+
+- Python 3.8+
+- Java 11+ (required for ErgoAppKit)
+- Access to an Ergo node (local or remote)
+
+## Installation
+
+1. Clone the repository:
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/ergonaut-airdrop.git
+git clone https://github.com/your-repo/ergonaut-airdrop.git
 cd ergonaut-airdrop
+```
 
-# Create a virtual environment
+2. Create and activate virtual environment:
+```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-# Install dependencies
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-## 🎯 Prerequisites
-- Python 3.8 or higher
-- An Ergo node with API access
-- Sufficient ERG for transaction fees
-- Tokens to distribute
-- Access to miner statistics
+## Configuration
 
-## ⚙️ Configuration
-Create a `.env` file in the project root:
-```bash
-# Node Configuration
-NODE_URL=http://your.node:9053
-NODE_API_KEY=your_api_key
-NETWORK_TYPE=mainnet
+Create a `.env` file in the root directory with your configuration:
+
+```env
+# Required: Node and Network Configuration
+NODE_URL=http://your-node:9053
+NETWORK_TYPE=MAINNET
 EXPLORER_URL=https://api.ergoplatform.com/api/v1
 
-# Wallet Configuration
-WALLET_ADDRESS=your_wallet_address
+# Option 1: Node Wallet Configuration
+NODE_API_KEY=your_node_api_key
+NODE_WALLET_ADDRESS=your_wallet_address
 
-# Optional Telegram Notifications
+# Option 2: Mnemonic Configuration
+WALLET_MNEMONIC=your mnemonic phrase
+MNEMONIC_PASSWORD=optional mnemonic password
+
+# Optional: Telegram Notifications
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
 
-## 🚀 Usage
-Basic command structure:
+## Usage
+
+### Single Token Airdrop
+
+The basic airdrop supports distributing a single token or ERG to multiple recipients.
+
 ```bash
-python airdrop.py <token_name> <amount> [options]
+# Airdrop to miners
+python src/airdrop.py TOKEN_NAME --total-amount 100 --source miners
+
+# Airdrop to specific address
+python src/airdrop.py TOKEN_NAME --amount-per-recipient 10 --address 9hxk8tPN8RsbbeCYChBKJmBjNSEqcNcJW68gHJBBYnmAfDfZW9g
+
+# Dry run to preview transaction
+python src/airdrop.py TOKEN_NAME --total-amount 100 --source miners --debug
 ```
 
-### Example Commands
-```bash
-# Test run with debug mode
-python airdrop.py ProxyToken 1.0 --debug
+### Multi-Token Airdrop
 
-# Live distribution
-python airdrop.py ProxyToken 1.0
+For distributing multiple tokens in a single transaction, use the multi-token airdrop with a JSON configuration file.
 
-# Distribution with minimum hashrate filter
-python airdrop.py ProxyToken 1.0 --min-hashrate 100
+1. Create a distribution config file (e.g., `config.json`):
 
-# Distribution to specific addresses
-python airdrop.py ProxyToken 1.0 --addresses addr1 addr2 addr3
-
-# Distribution from CSV file
-python airdrop.py ProxyToken 1.0 --recipient-list recipients.csv
+```json
+{
+    "distributions": [
+        {
+            "token_name": "LASTBYTE",
+            "total_amount": 100
+        },
+        {
+            "token_name": "ERG",
+            "total_amount": 1
+        },
+        {
+            "token_name": "SIGMANAUTS",
+            "amount_per_recipient": 10
+        }
+    ]
+}
 ```
 
-## 🎮 Interactive Controls
-During the airdrop process:
-- Press `Y` to confirm launch
-- Press `N` to abort mission
-- Mission automatically times out after 30 seconds of inactivity
+2. Run the multi-token airdrop:
 
-## 🔐 Security
-- Always run in debug mode first
-- Verify recipient addresses before launch
-- Keep your API keys secure
-- Ensure sufficient ERG balance for fees
-- Monitor node synchronization status
-- Never commit your `.env` file to version control
-
-## 🛠️ Development
 ```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
+# Airdrop to miners
+python src/multi_token_airdrop.py config.json --source miners
 
+# Airdrop to specific address
+python src/multi_token_airdrop.py config.json --source 9hxk8tPN8RsbbeCYChBKJmBjNSEqcNcJW68gHJBBYnmAfDfZW9g
 
-## 🤝 Contributing
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+# Dry run to preview transaction
+python src/multi_token_airdrop.py config.json --source miners --dry-run
+```
 
-## 📜 License
-This project is licensed under the APACHE License - see the [LICENSE](LICENSE) file for details.
+## Distribution Configuration
 
-## 🌌 Credits
-Built with love for the Ergo community by your fellow Ergonauts.
+For each token distribution, you can specify either:
+- `total_amount`: Total amount to distribute equally among recipients
+- `amount_per_recipient`: Fixed amount for each recipient
 
-## 🆘 Support
-- Open an issue for bug reports
-- Join our [Discord](https://discord.gg/your-invite) for community support
-- Check the [Wiki](https://github.com/yourusername/ergonaut-airdrop/wiki) for detailed documentation
+The tool will automatically:
+- Handle token decimals correctly
+- Validate all addresses
+- Check wallet balances
+- Estimate and validate ERG requirements
+- Preview the distribution before execution
 
----
-Made with ❤️ by Ergonauts, for Ergonauts.
+## Recipient Sources
+
+The tool supports multiple ways to specify recipients:
+
+1. **Miners**: Uses the SigmaUSD mining pool API
+```bash
+--source miners
+```
+
+2. **Direct Address**: Single Ergo address
+```bash
+--source 9hxk8tPN8RsbbeCYChBKJmBjNSEqcNcJW68gHJBBYnmAfDfZW9g
+```
+
+3. **CSV File**: Custom recipient list with optional hashrates
+```bash
+--source path/to/recipients.csv
+```
+
+4. **JSON File**: Custom recipient list with optional metadata
+```bash
+--source path/to/recipients.json
+```
+
+## Security Considerations
+
+1. Never share your mnemonic phrase or node API key
+2. Always use `--dry-run` or `--debug` first to preview transactions
+3. Keep your wallet backup secure
+4. Ensure your node is fully synced before executing transactions
+
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Wallet Locked Error**: 
+   ```
+   Ensure your node wallet is unlocked:
+   curl -X POST "http://localhost:9053/wallet/unlock" -H "api_key: your_api_key" -H "Content-Type: application/json" -d "{\"pass\":\"your_wallet_password\"}"
+   ```
+
+2. **Insufficient ERG**:
+   - Each output box requires minimum 0.001 ERG
+   - Additional ERG needed for transaction fees
+   - Check wallet balance includes network fees
+
+3. **Invalid Token Name**:
+   - Ensure token name matches exactly (case-sensitive)
+   - Token must be listed in supported tokens list
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
