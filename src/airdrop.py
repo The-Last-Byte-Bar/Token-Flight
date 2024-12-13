@@ -9,13 +9,14 @@ import sys
 import time
 import argparse
 import signal
-
-
+from decimal import Decimal
+from env_config import EnvironmentConfig
 from error_handler import setup_error_handler, ErrorHandler
 from multi_output_builder import MultiOutputBuilder, OutputBox
 from ui.space_ui import SpaceUI
 from recipient_manager import RecipientManager, AirdropRecipient
 from art.animations import SpaceAnimation
+from wallet_manager import WalletManager
 
 # Constants
 ERG_TO_NANOERG = 1e9
@@ -37,60 +38,65 @@ class TokenAirdrop:
     def __init__(self):
         load_dotenv()
         
-        required_vars = [
-            'NODE_URL', 'NODE_API_KEY', 'NETWORK_TYPE', 'EXPLORER_URL', 
-            'WALLET_ADDRESS'
-        ]
-        for var in required_vars:
-            if not os.getenv(var):
-                raise ValueError(f"Missing required environment variable: {var}")
-        
-        self.node_url = os.getenv('NODE_URL')
-        self.node_api_key = os.getenv('NODE_API_KEY')
-        self.network_type = os.getenv('NETWORK_TYPE')
-        self.explorer_url = os.getenv('EXPLORER_URL')
-        self.wallet_address = os.getenv('WALLET_ADDRESS')
-        
-        self.builder = MultiOutputBuilder(
-            node_url=self.node_url,
-            network_type=self.network_type,
-            explorer_url=self.explorer_url,
-            node_api_key=self.node_api_key
-        )
-        
-        self.ui = SpaceUI()
-        self.animator = SpaceAnimation(self.ui.console)
-        
+        # Set up logging first
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         
+        # Load and validate config
+        self.config = EnvironmentConfig.load()
+        self.logger.debug("Environment config loaded")
+        
+        # Store configuration  
+        self.node_url = self.config['node_url']
+        self.network_type = self.config['network_type']
+        self.explorer_url = self.config['explorer_url']
+        
+        # Initialize builder based on available credentials
+        self.builder = MultiOutputBuilder(
+            node_url=self.config['node_url'],
+            network_type=self.config['network_type'],
+            explorer_url=self.config['explorer_url']
+        )
+        
+        # Configure wallet based on available credentials
+        self._configure_wallet()
+        
+        # Set up UI components
+        self.ui = SpaceUI()
+        self.animator = SpaceAnimation(self.ui.console)
         self.min_box_value = MIN_BOX_VALUE / ERG_TO_NANOERG
 
-    def unlock_wallet(self) -> bool:
-        """Attempt to unlock the node wallet"""
-        try:
-            headers = {
-                'Content-Type': 'application/json',
-                'api_key': self.node_api_key
-            }
-            
-            # First check if wallet is already unlocked
-            status_url = f"{self.node_url}/wallet/status"
-            status_response = requests.get(status_url, headers=headers)
-            if status_response.status_code == 200:
-                if status_response.json().get('isUnlocked', False):
-                    return True
-                
-            # If not unlocked, try to unlock it (this assumes wallet is initialized)
-            self.ui.log_info("Attempting to unlock wallet...")
-            return True  # For now, assume success as actual unlocking would need password
-            
-        except Exception as e:
-            self.logger.error(f"Failed to check/unlock wallet: {e}")
-            return False
+    def _configure_wallet(self):
+        """Configure wallet based on available credentials"""
+        # Start with checking for mnemonic
+        mnemonic = self.config.get('wallet_mnemonic')
+        if mnemonic:
+            self.logger.info("Configuring wallet with mnemonic...")
+            self.builder.wallet_manager.configure_mnemonic(
+                mnemonic=mnemonic,
+                password=self.config.get('mnemonic_password', '')
+            )
+            _, self.wallet_address = self.builder.wallet_manager.get_signing_config()
+            return
+
+        # Fall back to node wallet if available
+        node_api_key = self.config.get('node_api_key')
+        node_wallet_address = self.config.get('node_wallet_address')
+        if node_api_key and node_wallet_address:
+            self.logger.info("Configuring wallet with node...")
+            self.builder.ergo.apiKey = node_api_key
+            self.builder.wallet_manager.configure_node_address(node_wallet_address)
+            self.wallet_address = node_wallet_address
+            return
+
+        raise ValueError(
+            "No valid wallet configuration found. Please provide either:\n"
+            "1. WALLET_MNEMONIC (and optionally MNEMONIC_PASSWORD) or\n"
+            "2. NODE_API_KEY and NODE_WALLET_ADDRESS"
+        )
 
     def prepare_amounts(self, total_amount: Optional[float], amount_per_recipient: Optional[float], 
                        recipient_count: int, decimals: int) -> List[int]:
@@ -130,23 +136,23 @@ class TokenAirdrop:
                        total_amount: Optional[float] = None,
                        amount_per_recipient: Optional[float] = None,
                        debug: bool = True) -> Dict:
+        """Execute the airdrop with the given parameters."""
         try:
+            self.logger.debug(f"Starting airdrop execution for {token_name}")
             self.ui.display_welcome()
             self.ui.display_assumptions()
-            self.ui.log_info("Please review the Know Your Assumptions (KYA) checklist carefully...")
-            time.sleep(2)  # Reduced for testing
             
-            self.ui.log_info("Initializing airdrop mission...")
+            # Get wallet configuration
+            use_node, active_address = self.builder.wallet_manager.get_signing_config()
+            self.logger.debug(f"Using {'node' if use_node else 'mnemonic'} signing with address: {active_address}")
             
-            # Check wallet status
-            if not debug and not self.unlock_wallet():
-                raise ValueError("Unable to unlock wallet. Please ensure wallet is initialized and unlocked.")
-            
-            # Check if we're dealing with ERG or a token
+            # Get token details
             is_erg = token_name.upper() in ['ERG', 'ERGO']
             token_id, token_decimals = self.get_token_data(token_name)
+            self.logger.debug(f"Token details - ID: {token_id}, Decimals: {token_decimals}")
             
-            # Calculate amounts for each recipient
+            # Calculate amounts
+            self.logger.debug("Calculating distribution amounts...")
             amounts = self.prepare_amounts(
                 total_amount=total_amount,
                 amount_per_recipient=amount_per_recipient,
@@ -155,6 +161,7 @@ class TokenAirdrop:
             )
             
             # Create output boxes
+            self.logger.debug("Creating output boxes...")
             outputs = []
             for recipient, amount in zip(recipients, amounts):
                 if is_erg:
@@ -173,12 +180,12 @@ class TokenAirdrop:
                         }]
                     ))
             
-            # Calculate totals for display
+            # Calculate and display totals
             total_amount_actual = sum(amount / (10 ** token_decimals) for amount in amounts)
-            if is_erg:
-                total_erg_needed = total_amount_actual
-            else:
-                total_erg_needed = self.builder.estimate_transaction_cost(len(recipients))
+            total_erg_needed = total_amount_actual if is_erg else self.builder.estimate_transaction_cost(len(recipients))
+            
+            self.logger.debug(f"Total amount: {total_amount_actual} {token_name}")
+            self.logger.debug(f"Total ERG needed: {total_erg_needed}")
             
             self.ui.display_summary(
                 token_name=token_name,
@@ -188,13 +195,17 @@ class TokenAirdrop:
                 total_hashrate=sum(r.hashrate for r in recipients),
                 decimals=token_decimals
             )
-    
+            
             # Check balances
-            erg_balance, token_balances = self.builder.get_wallet_balances(self.wallet_address)
-            if is_erg:
-                human_readable_balance = erg_balance
-            else:
-                human_readable_balance = token_balances.get(token_id, 0) / (10 ** token_decimals)
+            self.logger.debug("Checking wallet balances...")
+            erg_balance, token_balances = self.builder.get_wallet_balances(active_address)
+            human_readable_balance = (
+                erg_balance if is_erg 
+                else token_balances.get(token_id, 0) / (10 ** token_decimals)
+            )
+            
+            self.logger.debug(f"ERG Balance: {erg_balance}")
+            self.logger.debug(f"Token Balance: {human_readable_balance}")
             
             self.ui.display_wallet_balance(
                 token_name=token_name,
@@ -202,61 +213,65 @@ class TokenAirdrop:
                 token_balance=human_readable_balance,
                 decimals=token_decimals
             )
-    
+            
             if debug:
-                self.ui.log_warning("Debug mode active - No transaction will be created")
-                try:
-                    self.ui.log_info("Testing animations...")
-                    self.animator.launch_animation()
-                    self.ui.display_success("DEBUG_TX_ID", "https://explorer.ergoplatform.com/")
-                    self.animator.success_animation()
-                except Exception as e:
-                    self.ui.log_error(f"Animation test error: {str(e)}")
-                
+                self.logger.info("Running in debug mode - no transaction will be created")
                 return {
                     "status": "debug",
                     "recipients": len(recipients),
                     "total_amount": total_amount_actual,
                     "total_erg": total_erg_needed,
+                    "signing_method": "node" if use_node else "mnemonic",
+                    "active_address": active_address,
                     "distribution": list(zip(
                         [r.address for r in recipients],
                         [a / (10 ** token_decimals) for a in amounts]
                     ))
                 }
-    
+            
+            # Check balances against required amounts
+            if erg_balance < total_erg_needed:
+                raise ValueError(
+                    f"Insufficient ERG balance. Required: {total_erg_needed:.4f}, "
+                    f"Available: {erg_balance:.4f}"
+                )
+            
+            if not is_erg and human_readable_balance < total_amount_actual:
+                raise ValueError(
+                    f"Insufficient {token_name} balance. Required: {total_amount_actual:,.{token_decimals}f}, "
+                    f"Available: {human_readable_balance:,.{token_decimals}f}"
+                )
+            
             if not self.ui.display_confirmation_prompt(30):
                 return {"status": "cancelled", "error": "user_cancelled"}
-    
-            try:
-                self.ui.log_info("Preparing transaction outputs...")
-                
-                self.ui.log_info("Initiating transaction...")
-                tx_id = self.builder.create_multi_output_tx(outputs, self.wallet_address)
-                
-                explorer_base = self.explorer_url.rstrip('/').replace('/api/v1', '')
-                explorer_link = f"{explorer_base}/transactions/{tx_id}"
-                
-                try:
-                    self.animator.launch_animation()
-                    self.ui.display_success(tx_id, explorer_link)
-                    self.animator.success_animation()
-                except Exception as e:
-                    self.ui.log_error(f"Animation error: {e}")
-                
-                return {
-                    "status": "completed",
-                    "tx_id": tx_id,
-                    "recipients": len(recipients),
-                    "explorer_url": explorer_link
-                }
-    
-            except Exception as e:
-                self.ui.log_error(f"Transaction failed: {str(e)}")
-                return {"status": "failed", "error": str(e)}
-    
+            
+            self.logger.debug("Creating transaction...")
+            tx_id = self.builder.create_multi_output_tx(outputs, active_address)
+            
+            explorer_base = self.explorer_url.rstrip('/').replace('/api/v1', '')
+            explorer_link = f"{explorer_base}/transactions/{tx_id}"
+            
+            self.logger.info(f"Transaction created successfully: {tx_id}")
+            self.ui.display_success(tx_id, explorer_link)
+            
+            return {
+                "status": "completed",
+                "tx_id": tx_id,
+                "recipients": len(recipients),
+                "explorer_url": explorer_link,
+                "signing_method": "node" if use_node else "mnemonic",
+                "active_address": active_address
+            }
+            
         except Exception as e:
-            self.ui.log_error(f"Mission failed: {str(e)}")
-            return {"status": "failed", "error": str(e)}
+            self.logger.error(f"Airdrop execution failed: {str(e)}", exc_info=True)
+            self.ui.display_error(f"Mission failed: {str(e)}")
+            return {
+                "status": "failed", 
+                "error": str(e), 
+                "signing_method": "node" if 'use_node' in locals() else "unknown",
+                "active_address": active_address if 'active_address' in locals() else None
+            }
 
 def main():
     parser = argparse.ArgumentParser(description='Airdrop ERG or tokens to recipients.')
@@ -274,8 +289,17 @@ def main():
     args = parser.parse_args()
     
     try:
+        # Set up signal handlers
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Initialize error handler
+        error_handler = setup_error_handler()
+        
+        # Initialize airdrop
         airdrop = TokenAirdrop()
         
+        # Get recipients based on input method
         if args.recipient_list:
             recipients = RecipientManager.from_csv(args.recipient_list)
         elif args.addresses:
@@ -283,6 +307,7 @@ def main():
         else:
             recipients = RecipientManager.from_miners(args.min_hashrate)
         
+        # Execute airdrop
         result = airdrop.execute_airdrop(
             token_name=args.token_name,
             recipients=recipients,
@@ -294,6 +319,9 @@ def main():
         if result["status"] not in ["completed", "debug"]:
             sys.exit(1)
             
+    except GracefulExit as e:
+        print(f"\nGracefully exiting: {str(e)}")
+        sys.exit(0)
     except Exception as e:
         print(f"Error: {str(e)}")
         sys.exit(1)

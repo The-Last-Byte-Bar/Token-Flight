@@ -107,7 +107,7 @@ class TokenDistributor:
         except Exception as e:
             self.logger.error(f"Distribution calculation failed: {str(e)}")
             raise
-
+            
     def validate_distribution(self, amounts: List[int], total_available: int) -> bool:
         """
         Validate distribution amounts against available balance
@@ -118,21 +118,20 @@ class TokenDistributor:
             
         Returns:
             bool: True if distribution is valid
+            
+        Raises:
+            ValueError: If any validation fails
         """
         if not amounts:
             raise ValueError("No distribution amounts provided")
             
-        total_distribution = sum(amounts)
-        if total_distribution > total_available:
+        # Check for zero or negative amounts
+        invalid_amounts = [(i, amt) for i, amt in enumerate(amounts) if amt <= 0]
+        if invalid_amounts:
+            error_msg = "\n".join(f"Recipient {i}: {amt}" for i, amt in invalid_amounts)
             raise ValueError(
-                f"Total distribution amount ({total_distribution}) exceeds "
-                f"available balance ({total_available})"
+                f"Found {len(invalid_amounts)} invalid amounts (must be > 0):\n{error_msg}"
             )
-            
-        if any(amount <= 0 for amount in amounts):
-            raise ValueError("All distribution amounts must be greater than 0")
-            
-        return True
 
     def preview_distribution(self, config: DistributionConfig, 
                            recipient_count: int) -> Dict[str, Union[int, float, List[float]]]:
