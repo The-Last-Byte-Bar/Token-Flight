@@ -143,3 +143,37 @@ class WalletManager:
                 raise
         else:
             raise ValueError("No signing method configured (neither mnemonic nor node)")
+
+    def configure_wallet_address(self) -> bool:
+        """Check if the wallet is unlocked and properly configured."""
+        if not self.node_api_key:
+            return True  # Mnemonic-based wallets don't need unlocking
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'api_key': self.node_api_key
+            }
+            response = requests.get(f"{self.node_url}/wallet/status", headers=headers)
+            
+            if response.status_code == 403:
+                self.logger.error("Node API key authentication failed - insufficient permissions")
+                return False
+                
+            if response.status_code != 200:
+                self.logger.error(f"Failed to check wallet status: {response.status_code}")
+                return False
+            
+            status = response.json()
+            is_unlocked = status.get('isUnlocked', False)
+            
+            if not is_unlocked:
+                self.logger.error("Node wallet is locked. Please unlock it first.")
+                return False
+                
+            # Additional debug information
+            self.logger.debug(f"Wallet status: {status}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check wallet status: {e}")
+            return False
