@@ -57,6 +57,7 @@ def main():
     parser.add_argument('--source', default='miners', help='Recipients source: miners/CSV file/address')
     parser.add_argument('--min-hashrate', type=float, default=0, help='Minimum hashrate filter')
     parser.add_argument('--debug', action='store_true', help='Run in debug mode')
+    parser.add_argument('--headless', action='store_true', help='Run without user prompts')
     
     args = parser.parse_args()
     
@@ -103,6 +104,7 @@ def main():
             tokens=tokens,
             min_hashrate=args.min_hashrate,
             debug=args.debug,
+            headless=args.headless,
             recipients_file=args.source if args.source.endswith('.csv') else None,
             recipient_addresses=[args.source] if args.source.startswith('9') else None
         )
