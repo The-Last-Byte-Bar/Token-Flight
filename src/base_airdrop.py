@@ -45,7 +45,13 @@ class BaseAirdrop:
             elif (self.config.wallet_config.node_api_key and 
                   self.config.wallet_config.node_wallet_address):
                 self.logger.info("Configuring wallet with node...")
-                self.builder.ergo.apiKey = self.config.wallet_config.node_api_key
+                # Reinitialize builder with API key
+                self.builder = MultiOutputBuilder(
+                    node_url=self.config.wallet_config.node_url,
+                    network_type=self.config.wallet_config.network_type,
+                    explorer_url=self.config.wallet_config.explorer_url,
+                    node_api_key=self.config.wallet_config.node_api_key
+                )
                 self.builder.wallet_manager.configure_node_address(
                     self.config.wallet_config.node_wallet_address
                 )
@@ -195,9 +201,10 @@ class BaseAirdrop:
                     ]
                 )
             
-            # Get user confirmation if UI is available
-            if self.ui and not self.ui.display_confirmation_prompt():
-                return TransactionResult(status="cancelled")
+            # Get user confirmation if UI is available and not in headless mode
+            if self.ui and not self.config.headless:
+                if not self.ui.display_confirmation_prompt():
+                    return TransactionResult(status="cancelled")
             
             # Execute transaction
             self.logger.info("Creating transaction...")

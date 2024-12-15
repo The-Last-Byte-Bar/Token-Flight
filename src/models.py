@@ -59,6 +59,7 @@ class AirdropConfig:
     tokens: List[TokenConfig]
     min_hashrate: float = 0
     debug: bool = False
+    headless: bool = False
     recipients_file: Optional[str] = None
     recipient_addresses: Optional[List[str]] = None
 
