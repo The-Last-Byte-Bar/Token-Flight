@@ -6,6 +6,8 @@ from dataclasses import dataclass
 import json
 from decimal import Decimal
 import requests
+from wallet_manager import WalletManager
+from transaction_signer import TransactionSigner
 
 # Constants
 ERG_TO_NANOERG = 1e9
@@ -32,23 +34,49 @@ class MultiOutputBuilder:
     def __init__(self, node_url: str = "http://213.239.193.208:9053/", 
                  network_type: str = "mainnet",
                  explorer_url: str = "https://api.ergoplatform.com/api/v1",
-                 node_api_key: str = None):
+                 node_api_key: Optional[str] = None,
+                 node_wallet_address: Optional[str] = None,
+                 wallet_mnemonic: Optional[str] = None,
+                 mnemonic_password: Optional[str] = None):
+        """
+        Initialize MultiOutputBuilder with wallet configuration.
+        """
         self.node_url = node_url.rstrip('/')
         self.network_type = network_type
         self.explorer_url = explorer_url
         self.node_api_key = node_api_key
         self.logger = logging.getLogger(__name__)
         
-        # Initialize ErgoAppKit
+        # Initialize ErgoAppKit with basic configuration
         self.ergo = ErgoAppKit(
             node_url,
             network_type,
             explorer_url,
-            node_api_key
+            node_api_key if node_api_key else ""
         )
-
+        
+        # Initialize wallet manager with appropriate credentials
+        self.wallet_manager = WalletManager(
+            self.ergo,
+            node_url=node_url,
+            network_type=network_type,
+            explorer_url=explorer_url
+        )
+        
+        # Configure mnemonic if provided
+        if wallet_mnemonic:
+            self.wallet_manager.configure_mnemonic(wallet_mnemonic, mnemonic_password)
+            self.logger.info("Configured mnemonic for signing")
+            
+        # Configure wallet address
+        if node_wallet_address:
+            self.wallet_manager.configure_wallet_address(node_wallet_address)
+            self.logger.info("Configured wallet address")
+            
     def check_wallet_status(self) -> bool:
         """Check if the wallet is unlocked"""
+        if not self.node_api_key:
+            return True  # Mnemonic-based wallets don't need unlocking
         try:
             headers = {
                 'Content-Type': 'application/json',
@@ -67,70 +95,99 @@ class MultiOutputBuilder:
         Create a multi-input to multi-output transaction with optimal box selection.
         """
         try:
-            # Calculate required amounts
-            required_erg, required_tokens = self.calculate_required_amounts(outputs)
+            # Validate that sender address matches active wallet
+            self.logger.debug(f"Validating sender address: {sender_address}")
+            self.wallet_manager.validate_addresses(sender_address)
+            use_node, active_address = self.wallet_manager.get_signing_config()
             
-            # Select input boxes
-            selection = self.select_boxes(sender_address, required_erg, required_tokens)
+            # Calculate required amounts
+            required_erg = sum(int(out.erg_value * ERG_TO_NANOERG) for out in outputs) + FEE
+            required_tokens = {}
+            for out in outputs:
+                if out.tokens:
+                    for token in out.tokens:
+                        token_id = token['tokenId']
+                        amount = int(token['amount'])
+                        required_tokens[token_id] = required_tokens.get(token_id, 0) + amount
+            
+            self.logger.debug(f"Required ERG: {required_erg/ERG_TO_NANOERG}")
+            if required_tokens:
+                self.logger.debug(f"Required tokens: {required_tokens}")
+            
+            # Get input boxes
+            self.logger.debug(f"Getting input boxes for {active_address}")
+            input_boxes = self.ergo.boxesToSpend(
+                active_address,
+                required_erg,
+                required_tokens
+            )
+            
+            if not input_boxes:
+                raise ValueError("No input boxes found")
+                
+            self.logger.debug(f"Found {len(input_boxes)} input boxes")
             
             # Create output boxes
             output_boxes = []
             for out in outputs:
+                # Convert token list to dictionary format for buildOutBox
+                token_dict = {}
                 if out.tokens:
-                    tokens = {token['tokenId']: int(token['amount']) for token in out.tokens}
-                else:
-                    tokens = None
-                    
+                    for token in out.tokens:
+                        token_dict[token['tokenId']] = int(token['amount'])
+                
+                self.logger.debug(f"Building output box for {out.address} with {len(token_dict)} tokens")
+                self.logger.debug(f"ERG value: {out.erg_value}")
+                
                 box = self.ergo.buildOutBox(
                     value=int(out.erg_value * ERG_TO_NANOERG),
-                    tokens=tokens,
+                    tokens=token_dict if token_dict else None,
                     registers=None,
                     contract=self.ergo.contractFromAddress(out.address)
                 )
                 output_boxes.append(box)
-
+    
             # Build unsigned transaction
             self.logger.info("Building unsigned transaction...")
+            from org.ergoplatform.appkit import Address
+            
+            self.logger.debug(f"Creating change address from: {active_address}")
+            change_address = Address.create(active_address).getErgoAddress()
+            
             unsigned_tx = self.ergo.buildUnsignedTransaction(
-                inputs=selection.boxes,
+                inputs=input_boxes,
                 outputs=output_boxes,
                 fee=FEE,
-                sendChangeTo=Address.create(sender_address).getErgoAddress()
+                sendChangeTo=change_address
             )
             
-            # Sign and submit transaction
-            self.logger.info("Signing transaction with node wallet...")
-            try:
+            # Sign transaction using appropriate method
+            self.logger.info(f"Signing transaction using {'node' if use_node else 'mnemonic'}...")
+            if use_node:
+                # Check wallet status before signing
+                if not self.check_wallet_status():
+                    raise WalletLockedException(
+                        "\nWallet appears to be locked. Please ensure:\n"
+                        "1. Your node wallet is initialized\n"
+                        "2. The wallet is unlocked using:\n"
+                        "   curl -X POST \"http://localhost:9053/wallet/unlock\" -H \"api_key: your_api_key\" -H \"Content-Type: application/json\" -d \"{\\\"pass\\\":\\\"your_wallet_password\\\"}\"\n"
+                        "3. Your node API key is correct\n"
+                        "4. The node is fully synced\n"
+                    )
                 signed_tx = self.ergo.signTransactionWithNode(unsigned_tx)
-            except Exception as e:
-                error_msg = str(e)
-                if ("Tree root should be real" in error_msg or 
-                    "UnprovenSchnorr" in error_msg):
-                    # Check wallet status
-                    if not self.check_wallet_status():
-                        raise WalletLockedException(
-                            "\nWallet appears to be locked. Please ensure:\n"
-                            "1. Your node wallet is initialized\n"
-                            "2. The wallet is unlocked using:\n"
-                            "   curl -X POST \"http://localhost:9053/wallet/unlock\" -H \"api_key: your_api_key\" -H \"Content-Type: application/json\" -d \"{\\\"pass\\\":\\\"your_wallet_password\\\"}\"\n"
-                            "3. Your node API key is correct in the .env file\n"
-                            "4. The node is fully synced\n"
-                        )
-                raise
+            else:
+                signed_tx = self.wallet_manager.sign_transaction(unsigned_tx)
             
             self.logger.info("Submitting transaction to network...")
             tx_id = self.ergo.sendTransaction(signed_tx)
             
             self.logger.info(f"Transaction submitted successfully: {tx_id}")
             return tx_id
-
-        except WalletLockedException as e:
-            self.logger.error(f"Wallet locked: {e}")
-            raise
+    
         except Exception as e:
-            self.logger.error(f"Transaction creation failed: {e}", exc_info=True)
+            self.logger.error(f"Transaction creation failed: {str(e)}", exc_info=True)
             raise
-
+            
     def calculate_required_amounts(self, outputs: List[OutputBox]) -> Tuple[int, Dict[str, int]]:
         """Calculate total ERG and tokens needed for outputs."""
         total_erg = sum(int(out.erg_value * ERG_TO_NANOERG) for out in outputs) + FEE
