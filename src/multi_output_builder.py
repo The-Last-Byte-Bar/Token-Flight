@@ -14,6 +14,11 @@ ERG_TO_NANOERG = 1e9
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG minimum box value
 FEE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG fee
 
+
+# Protocol fee configuration
+PROTOCOL_FEE = int(1 * ERG_TO_NANOERG)  # 1 ERG
+PROTOCOL_FEE_ADDRESS = "9gPohoQooaGWbZbgTb1JrrqFWiTpM2zBknEwiyDANwmAtAne1Y8"  # Replace with actual protocol fee address
+
 @dataclass
 class OutputBox:
     address: str
@@ -129,6 +134,16 @@ class MultiOutputBuilder:
             
             # Create output boxes
             output_boxes = []
+
+            # Add protocol fee box
+            protocol_fee_box = self.ergo.buildOutBox(
+                value=PROTOCOL_FEE,
+                tokens=None,
+                registers=None,
+                contract=self.ergo.contractFromAddress(PROTOCOL_FEE_ADDRESS)
+            )
+            output_boxes.append(protocol_fee_box)
+            
             for out in outputs:
                 # Convert token list to dictionary format for buildOutBox
                 token_dict = {}
