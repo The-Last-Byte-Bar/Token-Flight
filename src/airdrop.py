@@ -6,7 +6,10 @@ import sys
 from typing import List
 from pathlib import Path
 
-from models import AirdropConfig, TokenConfig, WalletConfig
+from models import (
+    AirdropConfig, TokenConfig, WalletConfig, 
+    RecipientAmount  # Add this import
+)
 from base_airdrop import BaseAirdrop
 from ui.space_ui import SpaceUI
 from env_config import EnvironmentConfig
@@ -33,12 +36,24 @@ def parse_token_configs(config_file: str) -> List[TokenConfig]:
     
     tokens = []
     for token_data in data['distributions']:
+        # Parse recipient-specific amounts if provided
+        recipients = None
+        if 'recipients' in token_data:
+            recipients = [
+                RecipientAmount(
+                    address=r['address'],
+                    amount=float(r['amount'])
+                )
+                for r in token_data['recipients']
+            ]
+        
         tokens.append(TokenConfig(
             token_name=token_data['token_name'],
             total_amount=token_data.get('total_amount'),
             amount_per_recipient=token_data.get('amount_per_recipient'),
             min_amount=token_data.get('min_amount', 0.001),
-            decimals=token_data.get('decimals', 0)
+            decimals=token_data.get('decimals', 0),
+            recipients=recipients
         ))
     return tokens
 

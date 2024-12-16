@@ -1,0 +1,22 @@
+{
+  "distributions": [
+    {
+      "token_name": "love",
+      "recipients": [
+        {"address": "9fRyQfr7c889pFF5A4waw3jH5zmqQT3qdrF7zeHuAttuNUQbLTE", "amount": 1},
+        {"address": "9hYeUWUG2dAM6sZb9vr5qgF1gACEGQPLN9cbXjxERmJS89Tbadc", "amount": 2}
+      ]
+    },
+    {
+      "token_name": "LASTBYTE",
+      "total_amount": 1
+    },
+    {
+      "token_name": "SIGMANAUTSMININGPOOL",
+      "recipients": [
+        {"address": "9fRyQfr7c889pFF5A4waw3jH5zmqQT3qdrF7zeHuAttuNUQbLTE", "amount": 3},
+        {"address": "9hYeUWUG2dAM6sZb9vr5qgF1gACEGQPLN9cbXjxERmJS89Tbadc", "amount": 4}
+      ]
+    }
+  ]
+}
