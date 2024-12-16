@@ -11,13 +11,16 @@ class RecipientAmount:
 @dataclass
 class TokenConfig:
     """Configuration for a token to be distributed"""
-    token_name: str
-    token_id: Optional[str] = None  # None for ERG
-    decimals: int = 0
-    total_amount: Optional[float] = None
-    amount_per_recipient: Optional[float] = None
-    min_amount: float = 0.001
-    recipients: Optional[List[RecipientAmount]] = None  # New field for variable distribution
+    def __init__(self, token_name: str, token_id: Optional[str] = None, decimals: int = 0,
+                 total_amount: Optional[float] = None, amount_per_recipient: Optional[float] = None,
+                 min_amount: float = 0.001, recipients: Optional[List[RecipientAmount]] = None):
+        self.token_name = token_name
+        self.token_id = token_id
+        self.decimals = decimals
+        self.total_amount = total_amount
+        self.amount_per_recipient = amount_per_recipient
+        self.min_amount = min_amount
+        self.recipients = recipients
 
     def validate(self) -> bool:
         """Validate token configuration"""
@@ -47,8 +50,12 @@ class TokenConfig:
         """Calculate total amount for distribution"""
         if self.recipients is not None:
             return sum(r.amount for r in self.recipients)
-        return self.total_amount or 0  # Return 0 if using amount_per_recipient
-
+        if self.total_amount is not None:
+            return self.total_amount
+        if self.amount_per_recipient is not None:
+            return self.amount_per_recipient  # Note: This needs to be multiplied by recipient count later
+        return 0.0
+        
 @dataclass
 class WalletConfig:
     """Configuration for wallet access"""

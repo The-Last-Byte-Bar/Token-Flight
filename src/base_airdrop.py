@@ -332,8 +332,7 @@ class BaseAirdrop:
                     distributions=[
                         {
                             "token_name": token.token_name,
-                            "total_amount": token.total_amount or 
-                                          (token.amount_per_recipient * len(recipients))
+                            "total_amount": token.get_total_amount()
                         }
                         for token in self.config.tokens
                     ]
@@ -356,19 +355,27 @@ class BaseAirdrop:
             if self.ui:
                 self.ui.display_success(tx_id, explorer_url)
             
+            # Calculate distributions for result
+            distributions = []
+            for token in self.config.tokens:
+                if token.recipients is not None:
+                    # For variable distribution, sum up individual amounts
+                    total = sum(r.amount for r in token.recipients)
+                else:
+                    # For fixed distribution, calculate based on available fields
+                    total = token.get_total_amount()
+                
+                distributions.append({
+                    "token_name": token.token_name,
+                    "total_amount": total
+                })
+            
             return TransactionResult(
                 status="completed",
                 tx_id=tx_id,
                 explorer_url=explorer_url,
                 recipients_count=len(recipients),
-                distributions=[
-                    {
-                        "token_name": token.token_name,
-                        "total_amount": token.total_amount or 
-                                      (token.amount_per_recipient * len(recipients))
-                    }
-                    for token in self.config.tokens
-                ]
+                distributions=distributions
             )
             
         except Exception as e:
