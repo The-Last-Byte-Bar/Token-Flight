@@ -15,6 +15,14 @@ from ui.base_ui import BaseUI
 ERG_TO_NANOERG = 1e9
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)
 
+from multi_output_builder import (
+    ERG_TO_NANOERG,
+    MIN_BOX_VALUE,
+    FEE,
+    PROTOCOL_FEE,
+    PROTOCOL_FEE_ADDRESS
+)
+
 class BaseAirdrop:
     """Base class for airdrop operations"""
     
@@ -96,78 +104,210 @@ class BaseAirdrop:
                 
             return amounts
 
-    def get_recipients(self) -> List[AirdropRecipient]:
-        """Get recipients based on configuration"""
-        if self.config.recipients_file:
-            return RecipientManager.from_csv(self.config.recipients_file)
-        elif self.config.recipient_addresses:
-            return RecipientManager.from_list(self.config.recipient_addresses)
-        else:
-            return RecipientManager.from_miners(self.config.min_hashrate)
-
     def prepare_outputs(self, recipients: List[AirdropRecipient], 
                        token_configs: List[TokenConfig]) -> List[OutputBox]:
-        """Prepare output boxes for transaction"""
-        outputs = []
-        for recipient in recipients:
-            tokens = []
-            erg_value = MIN_BOX_VALUE / ERG_TO_NANOERG
+        """Prepare output boxes for transaction with support for variable amounts"""
+        outputs = {}  # Use dictionary to prevent duplicate addresses
+        self.logger.debug(f"Starting prepare_outputs with {len(recipients)} recipients")
+        
+        def add_or_update_output(address: str, erg_value: float, tokens: List[Dict] = None) -> None:
+            """Helper to add or update output box"""
+            self.logger.debug(f"Processing output for address {address}")
+            self.logger.debug(f"  ERG value: {erg_value}")
+            if tokens:
+                self.logger.debug(f"  Tokens: {tokens}")
             
-            for token in token_configs:
-                token_id, decimals = self._get_token_data(token.token_name)
-                amounts = self._prepare_amounts(
-                    token.total_amount,
-                    token.amount_per_recipient,
-                    len(recipients),
-                    decimals
+            if address in outputs:
+                self.logger.debug(f"  Updating existing output for {address}")
+                outputs[address].erg_value += erg_value
+                if tokens:
+                    if outputs[address].tokens is None:
+                        outputs[address].tokens = []
+                    outputs[address].tokens.extend(tokens)
+            else:
+                self.logger.debug(f"  Creating new output for {address}")
+                outputs[address] = OutputBox(
+                    address=address,
+                    erg_value=erg_value,
+                    tokens=tokens
                 )
+    
+        # First pass: Handle variable distribution
+        for token in token_configs:
+            if token.recipients is not None:
+                self.logger.debug(f"Processing variable distribution for {token.token_name}")
+                token_id, decimals = self._get_token_data(token.token_name)
                 
-                if token_id is None:  # ERG
-                    erg_value += amounts[0] / ERG_TO_NANOERG
-                else:
-                    tokens.append({
-                        'tokenId': token_id,
-                        'amount': amounts[0]
-                    })
-            
-            outputs.append(OutputBox(
-                address=recipient.address,
-                erg_value=erg_value,
-                tokens=tokens if tokens else None
-            ))
-            
-        return outputs
+                for recipient_amount in token.recipients:
+                    address = recipient_amount.address
+                    amount = recipient_amount.amount
+                    
+                    self.logger.debug(f"Variable distribution: {token.token_name} -> {address}: {amount}")
+                    
+                    # Handle ERG or token amount
+                    if token_id is None:  # ERG
+                        # Add both minimum box value AND the distributed ERG amount
+                        total_erg = (MIN_BOX_VALUE/ERG_TO_NANOERG) + amount
+                        add_or_update_output(
+                            address=address,
+                            erg_value=total_erg
+                        )
+                    else:
+                        # Convert token amount to smallest unit
+                        amount_in_smallest = int(amount * (10 ** decimals))
+                        add_or_update_output(
+                            address=address,
+                            erg_value=MIN_BOX_VALUE/ERG_TO_NANOERG,
+                            tokens=[{
+                                'tokenId': token_id,
+                                'amount': amount_in_smallest
+                            }]
+                        )
+    
+        # Second pass: Handle standard distribution
+        standard_tokens = [t for t in token_configs if t.recipients is None]
+        if standard_tokens:
+            self.logger.debug(f"Processing standard distribution for {len(standard_tokens)} tokens")
+            for recipient in recipients:
+                address = recipient.address
+                if address not in outputs:  # Only process if not already included
+                    self.logger.debug(f"Standard distribution for new address: {address}")
+                    tokens = []
+                    erg_value = MIN_BOX_VALUE/ERG_TO_NANOERG
+                    
+                    for token in standard_tokens:
+                        self.logger.debug(f"Processing standard token: {token.token_name}")
+                        token_id, decimals = self._get_token_data(token.token_name)
+                        amounts = self._prepare_amounts(
+                            token.total_amount,
+                            token.amount_per_recipient,
+                            len(recipients),
+                            decimals
+                        )
+                        
+                        if token_id is None:  # ERG
+                            erg_value += amounts[0]/ERG_TO_NANOERG
+                        else:
+                            tokens.append({
+                                'tokenId': token_id,
+                                'amount': amounts[0]
+                            })
+                    
+                    add_or_update_output(
+                        address=address,
+                        erg_value=erg_value,
+                        tokens=tokens if tokens else None
+                    )
+        
+        # Log final summary
+        final_outputs = list(outputs.values())
+        total_erg = sum(out.erg_value for out in final_outputs)
+        self.logger.debug(f"Final output summary:")
+        self.logger.debug(f"  Total outputs: {len(final_outputs)}")
+        self.logger.debug(f"  Total ERG needed: {total_erg}")
+        for out in final_outputs:
+            self.logger.debug(f"  Output: {out.address} -> ERG: {out.erg_value}, Tokens: {out.tokens}")
+        
+        return final_outputs
+    
+    def get_recipients(self) -> List[AirdropRecipient]:
+        """Get recipients based on configuration, including those with specific amounts"""
+        recipients = []
+        
+        # Collect all addresses from token configs with specific recipients
+        for token in self.config.tokens:
+            if token.recipients is not None:
+                for recipient in token.recipients:
+                    if not any(r.address == recipient.address for r in recipients):
+                        recipients.append(AirdropRecipient(
+                            address=recipient.address,
+                            amount=recipient.amount
+                        ))
+        
+        # If we have any standard distribution tokens, add their recipients
+        if any(token.recipients is None for token in self.config.tokens):
+            if self.config.recipients_file:
+                recipients.extend(RecipientManager.from_csv(self.config.recipients_file))
+            elif self.config.recipient_addresses:
+                recipients.extend(RecipientManager.from_list(self.config.recipient_addresses))
+            else:
+                recipients.extend(RecipientManager.from_miners(self.config.min_hashrate))
+        
+        return recipients
 
     def validate_balances(self, outputs: List[OutputBox]) -> None:
-        """Validate wallet has sufficient balances"""
-        erg_balance, token_balances = self.builder.get_wallet_balances(self.wallet_address)
-        
-        # Calculate required amounts
-        required_erg = sum(out.erg_value for out in outputs)
-        required_tokens = {}
-        
-        for out in outputs:
-            if out.tokens:
-                for token in out.tokens:
-                    token_id = token['tokenId']
-                    amount = token['amount']
-                    required_tokens[token_id] = required_tokens.get(token_id, 0) + amount
-        
-        # Validate ERG balance
-        if erg_balance < required_erg:
-            raise ValueError(
-                f"Insufficient ERG balance. Required: {required_erg:.4f}, "
-                f"Available: {erg_balance:.4f}"
-            )
-        
-        # Validate token balances
-        for token_id, required_amount in required_tokens.items():
-            available = token_balances.get(token_id, 0)
-            if available < required_amount:
+        """Validate wallet has sufficient balances with detailed logging"""
+        try:
+            boxes = self.builder.ergo.getUnspentBoxes(self.wallet_address)
+            if not boxes:
+                raise ValueError("No unspent boxes found")
+            
+            # Calculate available balances
+            erg_balance = sum(box.getValue() for box in boxes) / ERG_TO_NANOERG
+            token_balances = {}
+            
+            self.logger.debug(f"Found {len(boxes)} unspent boxes")
+            self.logger.debug(f"Total ERG balance: {erg_balance}")
+            
+            # Debug log each box
+            for box in boxes:
+                box_erg = box.getValue() / ERG_TO_NANOERG
+                self.logger.debug(f"Box ERG: {box_erg}")
+                if box.getTokens():
+                    for token in box.getTokens():
+                        token_id = token.getId().toString()
+                        amount = token.getValue()
+                        token_balances[token_id] = token_balances.get(token_id, 0) + amount
+                        self.logger.debug(f"  Token {token_id}: {amount}")
+    
+            # Calculate and log required amounts
+            tx_fee = FEE / ERG_TO_NANOERG
+            protocol_fee = PROTOCOL_FEE / ERG_TO_NANOERG
+            min_box_total = len(outputs) * (MIN_BOX_VALUE / ERG_TO_NANOERG)
+            output_erg = sum(out.erg_value for out in outputs)
+            
+            self.logger.debug("Required ERG breakdown:")
+            self.logger.debug(f"  Transaction fee: {tx_fee}")
+            self.logger.debug(f"  Protocol fee: {protocol_fee}")
+            self.logger.debug(f"  Minimum box total: {min_box_total}")
+            self.logger.debug(f"  Output ERG: {output_erg}")
+            
+            total_required_erg = output_erg + tx_fee + protocol_fee
+            self.logger.debug(f"Total required ERG: {total_required_erg}")
+            
+            # Calculate required tokens
+            required_tokens = {}
+            for out in outputs:
+                if out.tokens:
+                    for token in out.tokens:
+                        token_id = token['tokenId']
+                        amount = token['amount']
+                        required_tokens[token_id] = required_tokens.get(token_id, 0) + amount
+                        self.logger.debug(f"Required token {token_id}: {amount}")
+            
+            # Validate ERG balance
+            if erg_balance < total_required_erg:
+                self.logger.error(f"ERG Requirements:")
+                self.logger.error(f"  Available: {erg_balance}")
+                self.logger.error(f"  Required: {total_required_erg}")
+                self.logger.error(f"  Deficit: {total_required_erg - erg_balance}")
                 raise ValueError(
-                    f"Insufficient token balance for {token_id}. "
-                    f"Required: {required_amount}, Available: {available}"
+                    f"Insufficient ERG balance. Required: {total_required_erg:.4f}, "
+                    f"Available: {erg_balance:.4f}"
                 )
+            
+            # Validate token balances
+            for token_id, required_amount in required_tokens.items():
+                available = token_balances.get(token_id, 0)
+                if available < required_amount:
+                    raise ValueError(
+                        f"Insufficient token balance for {token_id}. "
+                        f"Required: {required_amount}, Available: {available}"
+                    )
+    
+        except Exception as e:
+            self.logger.error(f"Balance validation failed: {str(e)}")
+            raise
 
     def execute(self) -> TransactionResult:
         """Execute airdrop transaction"""
@@ -194,8 +334,7 @@ class BaseAirdrop:
                     distributions=[
                         {
                             "token_name": token.token_name,
-                            "total_amount": token.total_amount or 
-                                          (token.amount_per_recipient * len(recipients))
+                            "total_amount": token.get_total_amount()
                         }
                         for token in self.config.tokens
                     ]
@@ -218,19 +357,27 @@ class BaseAirdrop:
             if self.ui:
                 self.ui.display_success(tx_id, explorer_url)
             
+            # Calculate distributions for result
+            distributions = []
+            for token in self.config.tokens:
+                if token.recipients is not None:
+                    # For variable distribution, sum up individual amounts
+                    total = sum(r.amount for r in token.recipients)
+                else:
+                    # For fixed distribution, calculate based on available fields
+                    total = token.get_total_amount()
+                
+                distributions.append({
+                    "token_name": token.token_name,
+                    "total_amount": total
+                })
+            
             return TransactionResult(
                 status="completed",
                 tx_id=tx_id,
                 explorer_url=explorer_url,
                 recipients_count=len(recipients),
-                distributions=[
-                    {
-                        "token_name": token.token_name,
-                        "total_amount": token.total_amount or 
-                                      (token.amount_per_recipient * len(recipients))
-                    }
-                    for token in self.config.tokens
-                ]
+                distributions=distributions
             )
             
         except Exception as e:

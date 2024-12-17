@@ -10,7 +10,7 @@
         },
         {
             "token_name": "Gort",
-            "amount_per_recipient": 1
+            "amount_per_recipient": 3
         },
         {
             "token_name": "CYPX",
@@ -41,7 +41,7 @@
             "total_amount": 76923
         },
         {
-            "token_name": "GiF",
+            "token_name": "GIF",
             "total_amount": 28846
         },
         {
@@ -75,6 +75,18 @@
         {
             "token_name": "rsHosky",
             "total_amount": 2987500
+        },
+        {
+            "token_name": "GreasyCex",
+            "total_amount": 20
+        },
+        {
+            "token_name": "Buns",
+            "total_amount": 8653
+        },
+        {
+            "token_name": "SIGMANAUTSMININGPOOL",
+            "total_amount": 5000
         }
         
     ]

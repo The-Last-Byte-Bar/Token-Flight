@@ -136,13 +136,17 @@ class MultiOutputBuilder:
             output_boxes = []
 
             # Add protocol fee box
-            protocol_fee_box = self.ergo.buildOutBox(
-                value=PROTOCOL_FEE,
-                tokens=None,
-                registers=None,
-                contract=self.ergo.contractFromAddress(PROTOCOL_FEE_ADDRESS)
-            )
-            output_boxes.append(protocol_fee_box)
+            if PROTOCOL_FEE > 0:
+                protocol_fee_box = self.ergo.buildOutBox(
+                    value=PROTOCOL_FEE,
+                    tokens=None,
+                    registers=None,
+                    contract=self.ergo.contractFromAddress(PROTOCOL_FEE_ADDRESS)
+                )
+                output_boxes.append(protocol_fee_box)
+                self.logger.debug(f"Added protocol fee box: {PROTOCOL_FEE/ERG_TO_NANOERG} ERG")
+            else:
+                self.logger.debug("Protocol fee is 0, skipping protocol fee box")
             
             for out in outputs:
                 # Convert token list to dictionary format for buildOutBox
