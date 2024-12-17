@@ -1,4 +1,5 @@
-# Token Flight AIRDROP Tool
+# Token Flight 
+## An Ergo Airdrop Tool
 
 A Python-based tool for performing token airdrops on the Ergo blockchain. Supports both ERG and token distributions with flexible configuration options.
 
