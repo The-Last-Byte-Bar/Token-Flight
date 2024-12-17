@@ -146,9 +146,11 @@ class BaseAirdrop:
                     
                     # Handle ERG or token amount
                     if token_id is None:  # ERG
+                        # Add both minimum box value AND the distributed ERG amount
+                        total_erg = (MIN_BOX_VALUE/ERG_TO_NANOERG) + amount
                         add_or_update_output(
                             address=address,
-                            erg_value=MIN_BOX_VALUE/ERG_TO_NANOERG  # Only add minimum box value
+                            erg_value=total_erg
                         )
                     else:
                         # Convert token amount to smallest unit

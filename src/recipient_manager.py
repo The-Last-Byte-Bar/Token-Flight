@@ -12,7 +12,7 @@ class AirdropRecipient:
 class RecipientManager:
     """Manages different ways to create recipient lists"""
     # SIGSCORE_API = 'http://5.78.102.130:8000/sigscore/miners?pageSize=5000'
-    SIGSCORE_API = 'http://0.0.0.0:8000/sigscore/miners/bonus'
+    SIGSCORE_API = 'http://5.78.102.130:8000/sigscore/miners/bonus'
     
     @staticmethod
     def from_miners(min_hashrate: float = 0) -> List[AirdropRecipient]:
