@@ -1,16 +1,28 @@
 {
     "distributions": [
         {
-            "token_name": "btcSHARK",
-            "amount_per_recipient": 1
+            "token_name": "CYPX",
+            "total_amount": 17184.17
         },
         {
-            "token_name": "LASTBYTE",
-            "amount_per_recipient": 1
+            "token_name": "RSN",
+            "total_amount": 411.51
         },
         {
-            "token_name": "SIGMANAUTSMININGPOOL",
-            "amount_per_recipient": 1
+            "token_name": "MEW",
+            "total_amount": 1980
+        },
+        {
+            "token_name": "Paideia",
+            "total_amount": 6000
+        },
+        {
+            "token_name": "QUACKS",
+            "total_amount": 195
+        },
+        {
+            "token_name": "Bober",
+            "total_amount": 30
         }
         
     ]
