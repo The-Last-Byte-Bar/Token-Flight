@@ -1,0 +1,13 @@
+{
+  "distributions": [
+    {
+      "token_name": "Ignifox",
+      "recipients": [
+        {
+          "address": "9iAFh6SzzSbowjsJPaRQwJfx4Ts4EzXt78UVGLgGaYTdab8SiEt",
+          "amount": 1
+        }
+      ]
+    }
+  ]
+}
