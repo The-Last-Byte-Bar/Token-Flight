@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  bonus-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.bonus
+    env_file: 
+      - .env.bonus
+    volumes:
+      - ../../bonus_config.json:/app/bonus_config.json
+      - ../../.env.bonus:/app/.env.bonus
+    restart: unless-stopped
+    networks:
+      - bonus-network
+
+networks:
+  bonus-network:
+    driver: bridge

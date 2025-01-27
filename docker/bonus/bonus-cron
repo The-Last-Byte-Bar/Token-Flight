@@ -1,0 +1,2 @@
+# Run every Monday at 9:00 AM EST (14:00 UTC)
+0 14 * * 1 /usr/local/bin/python /app/airdrop.py bonus_config.json --use-seed >> /app/logs/bonus_airdrop.log 2>&1
