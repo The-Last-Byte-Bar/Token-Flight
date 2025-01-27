@@ -1,7 +1,7 @@
 # src/mrp_service.py
 import time
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import requests
 from dataclasses import dataclass
 from mrp_distribution import MinerRightsProtocol
@@ -18,10 +18,14 @@ class Block:
 class MRPService:
     def __init__(self):
         self.api_url = "http://5.78.102.130:8000/miningcore/blocks"
-        self.last_processed_height = int(os.getenv('STARTING_BLOCK_HEIGHT', '0'))
+        self.height_file = "last_height.txt"
         self.min_confirmations = 1.0
+        self.check_interval = 1200  # 20 minutes
         self.mrp = MinerRightsProtocol()
         self.logger = logging.getLogger(__name__)
+        
+        # Load last processed height
+        self.last_processed_height = self._load_last_height()
         
         # Configure wallet
         self.wallet_config = WalletConfig(
@@ -32,28 +36,56 @@ class MRPService:
             node_wallet_address=os.getenv('WALLET_ADDRESS')
         )
 
+    def _load_last_height(self) -> int:
+        try:
+            if os.path.exists(self.height_file):
+                with open(self.height_file, 'r') as f:
+                    return int(f.read().strip())
+            return int(os.getenv('STARTING_BLOCK_HEIGHT', '0'))
+        except Exception as e:
+            self.logger.error(f"Error loading height: {e}")
+            return int(os.getenv('STARTING_BLOCK_HEIGHT', '0'))
+
+    def _save_last_height(self, height: int):
+        try:
+            with open(self.height_file, 'w') as f:
+                f.write(str(height))
+        except Exception as e:
+            self.logger.error(f"Error saving height: {e}")
+
     def get_new_confirmed_blocks(self) -> List[Block]:
         try:
             response = requests.get(self.api_url)
-            blocks = response.json()
+            blocks_data = response.json()
+            
+            # Add debug logging
+            self.logger.debug(f"API Response: {blocks_data}")
             
             confirmed_blocks = []
+            # Handle both list and dictionary response formats
+            blocks = blocks_data if isinstance(blocks_data, list) else blocks_data.get('blocks', [])
+            
             for block in blocks:
-                if block['blockheight'] <= self.last_processed_height:
+                # Safely access fields with get()
+                height = block.get('blockheight') or block.get('height')
+                progress = block.get('confirmationprogress') or block.get('confirmations', 0)
+                created = block.get('created') or block.get('timestamp')
+                
+                if not height or height <= self.last_processed_height:
                     continue
                     
-                if block['confirmationprogress'] >= self.min_confirmations:
+                if progress >= self.min_confirmations:
                     confirmed_blocks.append(Block(
-                        height=block['blockheight'],
-                        confirmation_progress=block['confirmationprogress'],
-                        created=block['created']
+                        height=height,
+                        confirmation_progress=float(progress),
+                        created=created
                     ))
             
             confirmed_blocks.sort(key=lambda x: x.height)
             return confirmed_blocks
-            
+                
         except Exception as e:
-            self.logger.error(f"Error fetching blocks: {e}")
+            self.logger.error(f"Error fetching blocks: {str(e)}", exc_info=True)
             return []
 
     def execute_distribution(self, block_height: int) -> Optional[str]:
@@ -97,11 +129,16 @@ class MRPService:
             return None
 
     def run(self):
-        self.logger.info("Starting MRP Service...")
+        self.logger.info(f"Starting MRP Service... Last processed height: {self.last_processed_height}")
         
         while True:
             try:
                 new_blocks = self.get_new_confirmed_blocks()
+                
+                if not new_blocks:
+                    self.logger.info(f"No new confirmed blocks found above height {self.last_processed_height}")
+                    time.sleep(self.check_interval)
+                    continue
                 
                 for block in new_blocks:
                     self.logger.info(f"Processing block {block.height}")
@@ -109,14 +146,14 @@ class MRPService:
                     
                     if tx_id:
                         self.logger.info(f"Distribution completed for block {block.height}. TX: {tx_id}")
+                        self.last_processed_height = block.height
+                        self._save_last_height(block.height)
                     
-                    self.last_processed_height = block.height
-                
-                time.sleep(60)  # Check every minute
+                time.sleep(self.check_interval)
                 
             except Exception as e:
                 self.logger.error(f"Error in main loop: {e}")
-                time.sleep(60)  # Wait before retrying
+                time.sleep(self.check_interval)
 
 if __name__ == "__main__":
     logging.basicConfig(
