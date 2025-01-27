@@ -11,6 +11,9 @@ A Python-based tool for performing token airdrops on the Ergo blockchain. Suppor
   - Fixed per-recipient amount
   - Variable amounts per recipient
 - Miner rewards distribution based on hashrate
+- Pool and protocol fee support
+- Automated block reward reduction
+- Block height persistence
 - Node wallet and mnemonic-based signing
 - Rich CLI interface with space theme
 - Comprehensive error handling and logging
@@ -49,7 +52,8 @@ pip install -r requirements.txt
 
 ## Configuration
 
-1. Create a `.env` file with your configuration:
+### For Standard Airdrops
+Create a `.env` file with your configuration:
 ```env
 NODE_URL=http://your.node:9053
 NETWORK_TYPE=mainnet
@@ -59,7 +63,39 @@ WALLET_ADDRESS=your_wallet_address    # Required for node signing
 WALLET_MNEMONIC=your_mnemonic_phrase  # Required for mnemonic signing
 ```
 
-2. Create a distribution configuration file (e.g., `config.json`):
+### For MRP Service
+Copy `.env.mrp.sample` to `.env.mrp` and configure:
+```env
+# Node Configuration
+NODE_URL=http://localhost:9053/
+NODE_API_KEY=your_node_api_key_here
+NETWORK_TYPE=MAINNET
+EXPLORER_URL=https://api.ergoplatform.com/api/v1
+WALLET_ADDRESS=your_wallet_address_here
+
+# Block Processing
+STARTING_BLOCK_HEIGHT=1446576
+
+# Token Configuration
+RIGHTS_TOKEN_ID=your_token_id_here
+EMISSION_TOKEN_NAME=YourToken
+BLOCK_REWARD=10000.0
+
+# Fee Configuration
+POOL_FEE_PERCENT=1.0
+PROTOCOL_FEE_PERCENT=1.0
+POOL_ADDRESS=pool_address_here
+PROTOCOL_ADDRESS=protocol_address_here
+
+# Emission Reduction
+REDUCTION_BLOCKS=500
+REDUCTION_PERCENT=10.0
+
+# Output
+OUTPUT_FILE=MRP.json
+```
+
+2. Configure distribution file (e.g., `config.json`):
 
 ```json
 {
@@ -93,6 +129,10 @@ For variable amounts per recipient:
 ### Basic Usage
 
 ```bash
+# Start MRP Service
+python mrp_service.py
+
+# For standard airdrops
 python airdrop.py config.json --use-node  # For node wallet signing
 # or
 python airdrop.py config.json --use-seed  # For mnemonic signing
@@ -123,6 +163,17 @@ address,amount,hashrate
 9f...,1.5,100000
 9h...,2.3,200000
 ```
+
+## Emission Reduction
+
+Block rewards automatically reduce based on configuration:
+- REDUCTION_BLOCKS: Number of blocks between reductions
+- REDUCTION_PERCENT: Percentage to reduce by each cycle
+
+Example with 500 blocks and 10% reduction:
+- Height 0-499: 10000
+- Height 500-999: 9000
+- Height 1000-1499: 8100
 
 ## Security Considerations
 
@@ -161,12 +212,6 @@ Common issues and solutions:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Ergo Platform team
-- ErgoAppKit developers
-- Community contributors
 
 ## Support
 
