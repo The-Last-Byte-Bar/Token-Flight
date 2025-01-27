@@ -125,6 +125,8 @@ celerybeat.pid
 .env
 *.env
 .env.mrp
+.env.bonus
+.env.demurrage
 .venv
 env/
 venv/
