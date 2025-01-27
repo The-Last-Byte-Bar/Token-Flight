@@ -19,6 +19,14 @@ class MinerRightsProtocol:
         self.protocol_fee_percent = float(os.getenv('PROTOCOL_FEE_PERCENT', '1.0'))
         self.pool_address = os.getenv('POOL_ADDRESS')
         self.protocol_address = os.getenv('PROTOCOL_ADDRESS')
+        self.reduction_blocks = int(os.getenv('REDUCTION_BLOCKS', '500'))
+        self.reduction_percent = float(os.getenv('REDUCTION_PERCENT', '10.0'))
+
+    def calculate_fees(self, emission_amount: float) -> tuple[float, float, float]:
+        pool_fee = emission_amount * (self.pool_fee_percent / 100)
+        protocol_fee = emission_amount * (self.protocol_fee_percent / 100)
+        remaining_amount = emission_amount - pool_fee - protocol_fee
+        return pool_fee, protocol_fee, remaining_amount
 
     @staticmethod
     def check_wallet_balance(address: str, token_id: str) -> bool:
@@ -42,13 +50,13 @@ class MinerRightsProtocol:
         remaining_amount = self.emission_amount - pool_fee - protocol_fee
         return pool_fee, protocol_fee, remaining_amount
 
-    def generate_distribution(self, miners_data: Dict) -> Dict:
-        pool_fee, protocol_fee, remaining_amount = self.calculate_fees()
+    def generate_distribution(self, miners_data: Dict, current_height: int) -> Dict:
+        emission_amount = self.calculate_emission(current_height)
+        pool_fee, protocol_fee, remaining_amount = self.calculate_fees(emission_amount)
         
         eligible_miners = []
         total_eligible_percentage = Decimal('0')
         
-        # Filter eligible miners
         for miner in miners_data['miners']:
             if self.check_wallet_balance(miner['miner_address'], self.rights_token_id):
                 eligible_miners.append(miner)
@@ -56,14 +64,12 @@ class MinerRightsProtocol:
         
         recipients = []
         
-        # Add pool fee recipient if configured
         if self.pool_address and pool_fee > 0:
             recipients.append({
                 "address": self.pool_address,
                 "amount": pool_fee
             })
             
-        # Add protocol fee recipient if configured
         if self.protocol_address and protocol_fee > 0:
             recipients.append({
                 "address": self.protocol_address,
@@ -96,6 +102,7 @@ class MinerRightsProtocol:
 
     def execute(self, block_heights: List[int]) -> Dict:
         miners_data = self.fetch_miners_data(block_heights)
-        distribution = self.generate_distribution(miners_data)
+        # Use the first block height for emission calculation
+        distribution = self.generate_distribution(miners_data, block_heights[0])
         self.save_distribution(distribution)
         return distribution
