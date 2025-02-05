@@ -1,2 +1,6 @@
-# Run every Monday at 9:00 AM EST (14:00 UTC)
-0 12 * * * /usr/local/bin/python /app/airdrop.py test_bonus_config.json --use-seed >> /app/logs/bonus_airdrop.log 2>&1
+# Cron job for bonus distribution
+# Run at 18:55 every day (for testing)
+20 19 * * * /usr/local/bin/python /app/bonus_service.py /app/test_bonus_config.json 2>&1
+
+# For production, switch to weekly (every Sunday at 18:55)
+# 55 18 * * 0 /usr/local/bin/python /app/bonus_service.py /app/bonus_config.json 2>&1

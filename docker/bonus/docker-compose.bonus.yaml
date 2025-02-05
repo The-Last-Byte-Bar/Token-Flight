@@ -1,4 +1,3 @@
-# docker-compose.bonus.yaml
 version: '3.8'
 services:
   bonus-service:
@@ -10,6 +9,5 @@ services:
     volumes:
       - ../../logs:/app/logs
       - ../../test_bonus_config.json:/app/test_bonus_config.json
-      - ./bonus-cron:/etc/cron.d/bonus-cron
     restart: unless-stopped
     network_mode: "host"
