@@ -1,0 +1,21 @@
+# docker-compose.demurrage.yaml
+version: '3.8'
+
+services:
+  demurrage-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.demurrage
+    env_file: 
+      - .env.demurrage
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - DEBUG=${DEBUG:-false}
+    networks:
+      - demurrage-network
+
+networks:
+  demurrage-network:
+    driver: bridge
