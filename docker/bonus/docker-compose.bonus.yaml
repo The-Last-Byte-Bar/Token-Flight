@@ -1,19 +1,15 @@
+# docker-compose.bonus.yaml
 version: '3.8'
-
 services:
   bonus-service:
     build:
-      context: .
-      dockerfile: Dockerfile.bonus
+      context: ../..
+      dockerfile: docker/bonus/Dockerfile.bonus
     env_file: 
-      - .env.bonus
+      - ../../.env.bonus
     volumes:
-      - ../../bonus_config.json:/app/bonus_config.json
-      - ../../.env.bonus:/app/.env.bonus
+      - ../../logs:/app/logs
+      - ../../test_bonus_config.json:/app/test_bonus_config.json
+      - ./bonus-cron:/etc/cron.d/bonus-cron
     restart: unless-stopped
-    networks:
-      - bonus-network
-
-networks:
-  bonus-network:
-    driver: bridge
+    network_mode: "host"

@@ -1,0 +1,25 @@
+# Core dependencies
+rich>=10.0.0            # Terminal formatting and UI
+python-dotenv>=0.19.0   # Environment variable management
+requests>=2.26.0        # HTTP requests
+pandas>=1.3.0           # Data manipulation
+python-telegram-bot>=20.0  # Telegram integration
+python-dotenv
+
+# Ergo specific
+jpype1>=1.3.0             # Required for Java interop with ergo-appkit
+py4j>=0.10.9.5           # Python-Java bridge
+
+# Development tools
+pytest>=6.2.5           # Testing framework
+black>=22.3.0           # Code formatting
+flake8>=3.9.0          # Code linting
+mypy>=0.910            # Static type checking
+
+# Optional tools
+ipython>=7.31.0        # Enhanced interactive Python shell
+jupyter>=1.0.0         # Notebook interface for development
+
+# System requirements note:
+# Java 8+ required for ergo-appkit
+# Python 3.8+ required

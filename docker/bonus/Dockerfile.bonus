@@ -1,11 +1,11 @@
+# Dockerfile.bonus
 FROM python:3.9-slim
-
 WORKDIR /app
-
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     default-jdk \
+    cron \
     && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
@@ -15,14 +15,12 @@ COPY requirements.txt .
 RUN pip install git+https://github.com/ergo-pad/ergo-python-appkit.git && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY src/ .
-COPY bonus_config.json .
+COPY src/airdrop.py /app/
+COPY src/*.py /app/
 
-# Create cron job
-RUN apt-get update && apt-get -y install cron
-COPY bonus-cron /etc/cron.d/bonus-cron
-RUN chmod 0644 /etc/cron.d/bonus-cron
-RUN crontab /etc/cron.d/bonus-cron
+# Set up cron
+COPY docker/bonus/bonus-cron /etc/cron.d/bonus-cron
+RUN chmod 0644 /etc/cron.d/bonus-cron && \
+    crontab /etc/cron.d/bonus-cron
 
-# Start cron in foreground
 CMD ["cron", "-f"]
