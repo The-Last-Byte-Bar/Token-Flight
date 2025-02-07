@@ -12,11 +12,15 @@ RUN apt-get update && apt-get install -y \
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV LD_LIBRARY_PATH=$JAVA_HOME/lib/server:$LD_LIBRARY_PATH
 
-COPY requirements.txt .
+COPY docker/demurrage/requirements.txt .
 RUN pip install git+https://github.com/ergo-pad/ergo-python-appkit.git && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY src/ .
+COPY .env.demurrage /app/.env.demurrage
 
-# Run the service with debug flag from environment
-CMD ["sh", "-c", "python demurrage_service.py ${DEBUG}"]
+RUN mkdir -p /app/logs && \
+    touch /app/logs/demurrage_airdrop.log && \
+    chmod -R 777 /app/logs
+
+CMD ["python", "demurrage_scheduler.py"]

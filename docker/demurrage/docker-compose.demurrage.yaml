@@ -4,17 +4,20 @@ version: '3.8'
 services:
   demurrage-service:
     build:
-      context: .
-      dockerfile: Dockerfile.demurrage
+      context: ../..
+      dockerfile: docker/demurrage/Dockerfile.demurrage
     env_file: 
-      - .env.demurrage
+      - ../../.env.demurrage
     volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      - logs:/app/logs
     environment:
       - DEBUG=${DEBUG:-false}
-    networks:
-      - demurrage-network
+      - DEMURRAGE_CRON=* * * * *    #0 13 * * 2  # Runs Every Tuesday @ 13:00 UTC
+    restart: unless-stopped
+    network_mode: "host"
+
+volumes:
+  logs:
 
 networks:
   demurrage-network:
