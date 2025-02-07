@@ -166,3 +166,5 @@ cython_debug/
 #.idea/
 
 /logs
+nft_distribution_*.json
+nft_recipients.json

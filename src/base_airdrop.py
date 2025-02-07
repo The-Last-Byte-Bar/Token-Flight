@@ -4,18 +4,18 @@ from decimal import Decimal
 import pandas as pd
 import requests
 
-from models import (
+from src.models import (
     AirdropConfig, TokenConfig, WalletConfig, AirdropRecipient,
     TransactionResult
 )
-from multi_output_builder import MultiOutputBuilder, OutputBox
-from recipient_manager import RecipientManager
-from ui.base_ui import BaseUI
+from src.multi_output_builder import MultiOutputBuilder, OutputBox
+from src.recipient_manager import RecipientManager
+from src.ui.base_ui import BaseUI
 
 ERG_TO_NANOERG = 1e9
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)
 
-from multi_output_builder import (
+from src.multi_output_builder import (
     ERG_TO_NANOERG,
     MIN_BOX_VALUE,
     FEE,
