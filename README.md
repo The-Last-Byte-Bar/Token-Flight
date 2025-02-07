@@ -10,6 +10,11 @@ A Python-based tool for performing token airdrops on the Ergo blockchain. Suppor
   - Equal distribution (total amount)
   - Fixed per-recipient amount
   - Variable amounts per recipient
+- Specialized Services:
+  - NFT Distribution Service
+  - Demurrage Service
+  - Bonus Distribution Service
+  - Miner Reward Program (MRP) Service
 - Miner rewards distribution based on hashrate
 - Pool and protocol fee support
 - Automated block reward reduction
@@ -219,3 +224,51 @@ For support:
 - Open an issue on GitHub
 - Join our Discord server
 - Check the documentation
+
+## Specialized Services
+
+### NFT Service
+The NFT Service enables automated distribution of NFTs across multiple recipients:
+```bash
+# Configure NFT service
+cp .env.sample .env.nft
+# Edit .env.nft with your configuration
+
+# Run NFT distribution
+python src/nft_service.py --collection "YourCollection" --recipients recipients.json
+```
+
+### Demurrage Service
+The Demurrage Service handles block height-based token distribution:
+```bash
+# Configure Demurrage service
+cp .env.sample .env.demurrage
+# Edit .env.demurrage with your configuration
+
+# Run Demurrage service
+docker-compose -f docker/demurrage/docker-compose.demurrage.yaml up
+```
+
+### Bonus Service
+The Bonus Service manages additional reward distributions:
+```bash
+# Configure Bonus service
+cp .env.sample .env.bonus
+# Edit .env.bonus with your configuration
+
+# Run Bonus service
+docker-compose -f docker/bonus/docker-compose.bonus.yaml up
+```
+
+### MRP (Miner Reward Program) Service
+The MRP Service handles mining reward distributions:
+```bash
+# Configure MRP service
+cp .env.sample .env.mrp
+# Edit .env.mrp with your configuration
+
+# Run MRP service
+python src/mrp_service.py
+```
+
+Each service can be configured independently through their respective environment files and can be run either directly or through Docker containers. Refer to the service-specific documentation in the `docs/` directory for detailed configuration options and usage examples.
