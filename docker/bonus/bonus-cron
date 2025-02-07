@@ -1,6 +1,0 @@
-# Cron job for bonus distribution
-# Run at 18:55 every day (for testing)
-20 19 * * * /usr/local/bin/python /app/bonus_service.py /app/test_bonus_config.json 2>&1
-
-# For production, switch to weekly (every Sunday at 18:55)
-# 55 18 * * 0 /usr/local/bin/python /app/bonus_service.py /app/bonus_config.json 2>&1
