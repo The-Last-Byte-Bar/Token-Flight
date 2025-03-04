@@ -4,6 +4,9 @@ from typing import List, Dict
 import json
 from decimal import Decimal
 import logging
+import argparse
+from pathlib import Path
+from dotenv import load_dotenv
 
 ERG_TO_NANOERG = int(1e9)
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)
@@ -142,8 +145,57 @@ class BlockHeightCollector:
             json.dump(distribution, f, indent=2)
         self.logger.info(f"Saved distribution to {filename}")
 
-def main():
-    collector = BlockHeightCollector()
+def load_env_config(env_file: str = '.env.demurrage') -> dict:
+    """Load configuration from .env file."""
+    # Load .env file
+    load_dotenv(env_file)
+    
+    return {
+        "api_base": os.getenv('ERGO_API_BASE', "https://api.ergoplatform.com/api/v1"),
+        "miners_api": os.getenv('MINERS_API', "http://5.78.102.130:8000/sigscore/miners/average-participation"),
+        "min_box_value": int(os.getenv('MIN_BOX_VALUE', MIN_BOX_VALUE)),
+        "tx_fee": int(os.getenv('TX_FEE', TX_FEE)),
+        "safety_margin": float(os.getenv('SAFETY_MARGIN', 0.003)),
+        "wallet_address": os.getenv('WALLET_ADDRESS')
+    }
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Process demurrage distribution')
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        default=False,
+        help='Run in dry-run mode to preview distribution without saving'
+    )
+    parser.add_argument(
+        '--verbose',
+        action='store_true',
+        default=False,
+        help='Enable verbose logging'
+    )
+    parser.add_argument(
+        '--env-file',
+        type=str,
+        default='.env.demurrage',
+        help='Path to environment file (default: .env.demurrage)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='distributions',
+        help='Directory to save distribution files (default: distributions)'
+    )
+    return parser.parse_args()
+
+def main(dry_run: bool = True, env_file: str = '.env.demurrage', output_dir: str = 'distributions'):
+    # Load configuration from env file
+    config = load_env_config(env_file)
+    
+    # Ensure output directory exists
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Initialize collector with wallet address from config
+    collector = BlockHeightCollector(config['wallet_address'])
     block_heights = collector.get_blocks_since_last_outgoing()
     
     if not block_heights:
@@ -159,20 +211,46 @@ def main():
         )
         wallet_balance = response.json().get('nanoErgs', 0) / ERG_TO_NANOERG
         recipient_count = len(miners_data.get('miners', []))
-        total_fees = (TX_FEE + (MIN_BOX_VALUE * recipient_count)) / ERG_TO_NANOERG
-        distribution_amount = wallet_balance - total_fees
+        total_fees = (config['tx_fee'] + (config['min_box_value'] * recipient_count)) / ERG_TO_NANOERG
+        distribution_amount = wallet_balance - total_fees - config['safety_margin']
 
         if distribution_amount <= 0:
             print(f"Insufficient balance for distribution. Need {total_fees} ERG for fees")
             return
 
         distribution = collector.generate_distribution(miners_data, distribution_amount, "ERG")
-        output_file = f"distribution_{len(block_heights)}_blocks.json"
+        
+        if dry_run:
+            print("\n=== DRY RUN RESULTS ===")
+            print(f"Total blocks processed: {len(block_heights)}")
+            print(f"Total miners: {len(miners_data.get('miners', []))}")
+            print(f"Wallet balance: {wallet_balance:.8f} ERG")
+            print(f"Total fees required: {total_fees:.8f} ERG")
+            print(f"Distribution amount: {distribution_amount:.8f} ERG")
+            print("\nDistribution breakdown:")
+            for dist in distribution['distributions']:
+                print(f"\nToken: {dist['token_name']}")
+                for recipient in dist['recipients']:
+                    print(f"Address: {recipient['address'][:15]}... Amount: {recipient['amount']:.8f} ERG")
+            return distribution
+        
+        output_file = f"{output_dir}/distribution_{len(block_heights)}_blocks.json"
         collector.save_distribution_json(distribution, output_file)
         print(f"Distribution saved to {output_file}")
+        return distribution
         
     except Exception as e:
         print(f"Error processing distribution: {e}")
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+    
+    main(
+        dry_run=args.dry_run,
+        env_file=args.env_file,
+        output_dir=args.output_dir
+    )

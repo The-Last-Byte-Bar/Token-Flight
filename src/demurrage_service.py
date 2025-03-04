@@ -65,7 +65,8 @@ class DemurrageService:
         # 1. Minimum box values for all recipients
         # 2. Transaction fee
         # 3. Wallet buffer for future transactions
-        total_costs = min_box_total + TX_FEE + WALLET_BUFFER
+        # 4. Change box minimum value
+        total_costs = min_box_total + TX_FEE + WALLET_BUFFER + MIN_BOX_VALUE  # Added MIN_BOX_VALUE for change box
         
         return total_costs / ERG_TO_NANOERG, min_box_total / ERG_TO_NANOERG
 

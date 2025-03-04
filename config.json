@@ -1,17 +1,8 @@
 {
     "distributions": [
         {
-            "token_name": "btcSHARK",
-            "amount_per_recipient": 1
-        },
-        {
-            "token_name": "LASTBYTE",
-            "amount_per_recipient": 1
-        },
-        {
-            "token_name": "SIGMANAUTSMININGPOOL",
-            "amount_per_recipient": 1
-        }
-        
+            "token_name": "bPaideia",
+            "amount_per_recipient": 18
+        }        
     ]
 }
