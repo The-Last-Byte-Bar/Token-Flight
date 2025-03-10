@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="ergonaut-airdrop",
+    name="token-flight",
     version="0.5.0",
-    description="A comprehensive airdrop and token distribution tool for the Ergo blockchain",
+    description="A comprehensive token airdrop and distribution tool for the Ergo blockchain",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="Ergonaut Community",
-    url="https://github.com/ergonaut-airdrop/ergonaut-airdrop",
+    url="https://github.com/ergonaut-airdrop/token-flight",
     package_dir={"": "."},
     packages=find_packages(where=".") + ["src"],
     package_data={
@@ -22,7 +22,6 @@ setup(
         "python-telegram-bot>=20.0",
         "jpype1>=1.3.0",
         "py4j>=0.10.9.5",
-        "fleet-sdk>=0.1.0",
     ],
     python_requires=">=3.8",
     classifiers=[
@@ -37,7 +36,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "ergonaut-airdrop=src.airdrop:main",
+            "token-flight=src.airdrop:main",
         ],
     },
 ) 

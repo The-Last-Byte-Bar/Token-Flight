@@ -1,5 +1,5 @@
 """
-Ergonaut Airdrop - A comprehensive airdrop and token distribution tool for the Ergo blockchain
+Token Flight - A comprehensive token airdrop and distribution tool for the Ergo blockchain
 """
 
 __version__ = "0.5.0"

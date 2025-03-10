@@ -1,7 +1,7 @@
 # Token Flight 
-## An Ergo Airdrop Tool
+## An Ergo Token Distribution Tool
 
-A Python-based tool for performing token airdrops on the Ergo blockchain. Supports both ERG and token distributions with flexible configuration options.
+A Python-based tool for performing token airdrops and distributions on the Ergo blockchain. Supports both ERG and token distributions with flexible configuration options.
 
 ## Features
 
@@ -40,13 +40,13 @@ A Python-based tool for performing token airdrops on the Ergo blockchain. Suppor
 
 ### Option 1: Install from PyPI
 ```bash
-pip install ergonaut-airdrop
+pip install token-flight
 ```
 
 ### Option 2: Install from source
 ```bash
-git clone https://github.com/yourusername/ergo-token-airdrop.git
-cd ergo-token-airdrop
+git clone https://github.com/ergonaut-airdrop/token-flight.git
+cd token-flight
 pip install -e .
 ```
 
@@ -271,7 +271,7 @@ Each service can be configured independently through their respective environmen
 ## Usage with Fleet SDK
 
 ```python
-from ergonaut_airdrop import Airdrop, TokenConfig
+from token_flight import Airdrop, TokenConfig
 from fleet_sdk.core import FleetSDK
 
 # Initialize Fleet SDK
