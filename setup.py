@@ -8,8 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Ergonaut Community",
     url="https://github.com/ergonaut-airdrop/token-flight",
-    package_dir={"": "."},
-    packages=find_packages(where=".") + ["src"],
+    packages=["src"],
     package_data={
         "": ["*.json", "*.env*"],
         "src": ["art/*", "ui/*"]
