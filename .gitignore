@@ -122,7 +122,11 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+.env.*
+*.env
+.env.mrp
+.env.bonus
+.env.demurrage
 .venv
 env/
 venv/
@@ -162,3 +166,5 @@ cython_debug/
 #.idea/
 
 /logs
+nft_distribution_*.json
+nft_recipients.json

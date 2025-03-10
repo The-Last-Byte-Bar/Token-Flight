@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  bonus-service:
+    build:
+      context: ../..
+      dockerfile: docker/bonus/Dockerfile.bonus
+    env_file: 
+      - ../../.env.bonus
+    volumes:
+      - logs:/app/logs
+      - ../../test_bonus_config.json:/app/test_bonus_config.json
+    environment:
+      - BONUS_CRON= 0 13 * * 1 # Runs Every Monday @ 8am EST
+    restart: unless-stopped
+    network_mode: "host"
+
+volumes:
+  logs:

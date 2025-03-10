@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import json
 from decimal import Decimal
 import requests
-from wallet_manager import WalletManager
-from transaction_signer import TransactionSigner
+from src.wallet_manager import WalletManager
+from src.transaction_signer import TransactionSigner
 
 # Constants
 ERG_TO_NANOERG = 1e9
@@ -16,7 +16,7 @@ FEE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG fee
 
 
 # Protocol fee configuration
-PROTOCOL_FEE = int(1 * ERG_TO_NANOERG)  # 1 ERG
+PROTOCOL_FEE = int(0 * ERG_TO_NANOERG)  # 1 ERG
 PROTOCOL_FEE_ADDRESS = "9gPohoQooaGWbZbgTb1JrrqFWiTpM2zBknEwiyDANwmAtAne1Y8"  # Replace with actual protocol fee address
 
 @dataclass

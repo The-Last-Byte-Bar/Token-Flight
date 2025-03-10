@@ -10,7 +10,7 @@ import sys
 import select
 import termios
 import tty
-from ui.base_ui import BaseUI
+from src.ui.base_ui import BaseUI
 
 class SpaceUI(BaseUI):
     def display_welcome(self):

@@ -9,12 +9,8 @@
             "total_amount": 23
         },
         {
-            "token_name": "Gort",
-            "amount_per_recipient": 3
-        },
-        {
             "token_name": "CYPX",
-            "total_amount": 2433
+            "total_amount": 3000
         },
         {
             "token_name": "EGIO",
@@ -65,10 +61,6 @@
             "total_amount": 1923076
         },
         {
-            "token_name": "Paideia",
-            "total_amount": 10000
-        },
-        {
             "token_name": "Bulls",
             "total_amount": 12530
         },
@@ -87,6 +79,26 @@
         {
             "token_name": "SIGMANAUTSMININGPOOL",
             "total_amount": 5000
+        },
+        {
+            "token_name": "PHP",
+            "total_amount": 721153.85
+        },
+        {
+            "token_name": "Wooden_Nickles",
+            "total_amount": 1923
+        },
+        {
+            "token_name": "Troll",
+            "total_amount": 15625000
+        },
+        {
+            "token_name": "Terahertz",
+            "total_amount": 19230
+        },
+        {
+            "token_name": "rsDIS",
+            "total_amount": 38461
         }
         
     ]

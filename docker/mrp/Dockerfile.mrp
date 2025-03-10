@@ -1,0 +1,21 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    default-jdk \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV LD_LIBRARY_PATH=$JAVA_HOME/lib/server:$LD_LIBRARY_PATH
+
+COPY requirements.txt .
+RUN pip install git+https://github.com/ergo-pad/ergo-python-appkit.git && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY src/ .
+
+# Run the service
+CMD ["python", "mrp_service.py"]

@@ -1,0 +1,24 @@
+# docker-compose.demurrage.yaml
+version: '3.8'
+
+services:
+  demurrage-service:
+    build:
+      context: ../..
+      dockerfile: docker/demurrage/Dockerfile.demurrage
+    env_file: 
+      - ../../.env.demurrage
+    volumes:
+      - logs:/app/logs
+    environment:
+      - DEBUG=${DEBUG:-false}
+      - DEMURRAGE_CRON=* * * * *    #0 13 * * 2  # Runs Every Tuesday @ 13:00 UTC
+    restart: unless-stopped
+    network_mode: "host"
+
+volumes:
+  logs:
+
+networks:
+  demurrage-network:
+    driver: bridge
