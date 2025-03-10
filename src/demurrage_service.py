@@ -3,9 +3,9 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import requests
 from dataclasses import dataclass
-from demurrage_distribution import BlockHeightCollector
-from airdrop import BaseAirdrop
-from models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
+from .demurrage_distribution import BlockHeightCollector
+from .base_airdrop import BaseAirdrop
+from .models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
 import os
 from decimal import Decimal, ROUND_DOWN
 

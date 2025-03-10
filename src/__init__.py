@@ -1,9 +1,24 @@
 """
-Ergo blockchain payment and distribution modules.
+Token Flight - A comprehensive token airdrop and distribution tool for the Ergo blockchain
 """
 
-from .models import *  # Import all models to make them available at package level
+__version__ = "0.5.0"
+
+from .base_airdrop import BaseAirdrop
+from .models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
+from .nft_airdrop import NFTAirdrop
+from .bonus_service import BonusService
+from .demurrage_service import DemurrageService
+from .mrp_service import MRPService
 
 __all__ = [
-    'AirdropConfig', 'TokenConfig', 'WalletConfig', 'AirdropRecipient', 'RecipientAmount'
+    "BaseAirdrop",
+    "AirdropConfig",
+    "TokenConfig",
+    "WalletConfig",
+    "RecipientAmount",
+    "NFTAirdrop",
+    "BonusService",
+    "DemurrageService",
+    "MRPService",
 ]

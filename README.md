@@ -1,7 +1,7 @@
 # Token Flight 
-## An Ergo Airdrop Tool
+## An Ergo Token Distribution Tool
 
-A Python-based tool for performing token airdrops on the Ergo blockchain. Supports both ERG and token distributions with flexible configuration options.
+A Python-based tool for performing token airdrops and distributions on the Ergo blockchain. Supports both ERG and token distributions with flexible configuration options.
 
 ## Features
 
@@ -38,21 +38,16 @@ A Python-based tool for performing token airdrops on the Ergo blockchain. Suppor
 
 ## Installation
 
-1. Clone the repository:
+### Option 1: Install from PyPI
 ```bash
-git clone https://github.com/yourusername/ergo-token-airdrop.git
-cd ergo-token-airdrop
+pip install token-flight
 ```
 
-2. Create and activate a virtual environment:
+### Option 2: Install from source
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
+git clone https://github.com/ergonaut-airdrop/token-flight.git
+cd token-flight
+pip install -e .
 ```
 
 ## Configuration
@@ -272,3 +267,37 @@ python src/mrp_service.py
 ```
 
 Each service can be configured independently through their respective environment files and can be run either directly or through Docker containers. Refer to the service-specific documentation in the `docs/` directory for detailed configuration options and usage examples.
+
+## Usage with Fleet SDK
+
+```python
+from token_flight import Airdrop, TokenConfig
+from fleet_sdk.core import FleetSDK
+
+# Initialize Fleet SDK
+fleet = FleetSDK()
+
+# Configure your airdrop
+config = TokenConfig(
+    token_id="your_token_id",
+    total_amount=1000000,
+    decimals=0
+)
+
+# Create airdrop instance
+airdrop = Airdrop(config)
+
+# Add recipients
+airdrop.add_recipient("9f...", 100)
+airdrop.add_recipient("9h...", 200)
+
+# Get unsigned transaction
+unsigned_tx = airdrop.build_transaction()
+
+# Sign with Fleet SDK
+signed_tx = fleet.sign_transaction(unsigned_tx)
+
+# Submit transaction
+tx_id = fleet.submit_transaction(signed_tx)
+print(f"Transaction submitted: {tx_id}")
+```
