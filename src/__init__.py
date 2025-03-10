@@ -5,7 +5,7 @@ Token Flight - A comprehensive token airdrop and distribution tool for the Ergo 
 __version__ = "0.5.0"
 
 from .base_airdrop import BaseAirdrop
-from .airdrop import Airdrop
+from .models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
 from .nft_airdrop import NFTAirdrop
 from .bonus_service import BonusService
 from .demurrage_service import DemurrageService
@@ -13,7 +13,10 @@ from .mrp_service import MRPService
 
 __all__ = [
     "BaseAirdrop",
-    "Airdrop",
+    "AirdropConfig",
+    "TokenConfig",
+    "WalletConfig",
+    "RecipientAmount",
     "NFTAirdrop",
     "BonusService",
     "DemurrageService",
