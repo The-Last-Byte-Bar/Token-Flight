@@ -4,10 +4,10 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import requests
 from dataclasses import dataclass
-from mrp_distribution import MinerRightsProtocol
-from airdrop import BaseAirdrop
-from models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
 import os
+from .mrp_distribution import MinerRightsProtocol
+from .models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
+from .base_airdrop import BaseAirdrop
 
 @dataclass
 class Block:
