@@ -3,6 +3,12 @@ import logging
 from decimal import Decimal
 import pandas as pd
 import requests
+import sys
+from pathlib import Path
+
+# Add the parent directory to sys.path when running as script
+if __name__ == "__main__":
+    sys.path.append(str(Path(__file__).parent.parent))
 
 from src.models import (
     AirdropConfig, TokenConfig, WalletConfig, AirdropRecipient,
