@@ -1,0 +1,8 @@
+# requirements.bonus.txt
+requests==2.31.0
+python-dotenv==1.0.0
+pandas==2.0.3
+rich==13.3.5
+jpype1==1.4.1
+numpy==1.24.3
+apscheduler==3.10.1

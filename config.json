@@ -1,6 +1,7 @@
 {
     "distributions": [
         {
+<<<<<<< HEAD
             "token_name": "CYPX",
             "total_amount": 17184.17
         },
@@ -25,5 +26,10 @@
             "total_amount": 30
         }
         
+=======
+            "token_name": "bPaideia",
+            "amount_per_recipient": 18
+        }        
+>>>>>>> b5dd5c53fd73ace40766a6a7ea7f66c6b935078a
     ]
 }

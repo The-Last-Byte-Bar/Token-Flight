@@ -6,13 +6,13 @@ import sys
 from typing import List
 from pathlib import Path
 
-from models import (
+from src.models import (
     AirdropConfig, TokenConfig, WalletConfig, 
     RecipientAmount  # Add this import
 )
-from base_airdrop import BaseAirdrop
-from ui.space_ui import SpaceUI
-from env_config import EnvironmentConfig
+from src.base_airdrop import BaseAirdrop
+from src.ui.space_ui import SpaceUI
+from src.env_config import EnvironmentConfig
 
 def setup_logging(log_dir: str = "logs"):
     """Setup logging configuration"""

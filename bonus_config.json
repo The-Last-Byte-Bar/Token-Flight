@@ -9,10 +9,6 @@
             "total_amount": 23
         },
         {
-            "token_name": "Gort",
-            "amount_per_recipient": 3
-        },
-        {
             "token_name": "CYPX",
             "total_amount": 3000
         },
@@ -35,10 +31,6 @@
         {
             "token_name": "AlienRocket",
             "total_amount": 184615
-        },
-        {
-            "token_name": "Fucks",
-            "total_amount": 76923
         },
         {
             "token_name": "GIF",
@@ -81,10 +73,6 @@
             "total_amount": 8653
         },
         {
-            "token_name": "SIGMANAUTSMININGPOOL",
-            "total_amount": 5000
-        },
-        {
             "token_name": "PHP",
             "total_amount": 721153.85
         },
@@ -99,6 +87,14 @@
         {
             "token_name": "Terahertz",
             "total_amount": 19230
+        },
+        {
+            "token_name": "rsDIS",
+            "total_amount": 38461
+        },
+        {
+            "token_name": "Fucks",
+            "total_amount": 76923
         }
         
     ]

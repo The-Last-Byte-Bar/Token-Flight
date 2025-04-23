@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  mrp-service:
+    build:
+      context: ../..
+      dockerfile: docker/mrp/Dockerfile.mrp
+    env_file: 
+      - ../../.env.mrp
+    volumes:
+      - ../../logs:/app/logs
+    restart: unless-stopped
+    network_mode: "host"
+
+networks:
+  mrp-network:
+    driver: bridge
