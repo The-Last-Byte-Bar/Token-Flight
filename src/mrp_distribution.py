@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import json
 import requests
+import logging
 from typing import List, Dict
 from decimal import Decimal
 
@@ -21,6 +22,7 @@ class MinerRightsProtocol:
         self.protocol_address = os.getenv('PROTOCOL_ADDRESS')
         self.reduction_blocks = int(os.getenv('REDUCTION_BLOCKS', '500'))
         self.reduction_percent = float(os.getenv('REDUCTION_PERCENT', '10.0'))
+        self.logger = logging.getLogger(__name__)
 
     def calculate_fees(self, emission_amount: float) -> tuple[float, float, float]:
         pool_fee = emission_amount * (self.pool_fee_percent / 100)
@@ -40,7 +42,16 @@ class MinerRightsProtocol:
 
     @staticmethod
     def fetch_miners_data(block_heights: List[int]) -> Dict:
-        response = requests.get(f"http://5.78.102.130:8000/sigscore/miners/average-participation?blocks={','.join(map(str, block_heights))}")
+        api_key = os.getenv('MINING_WAVE_API_KEY')
+        headers = {}
+        if api_key:
+            headers['X-API-Key'] = api_key
+        else:
+            MinerRightsProtocol.logger.warning("No MINING_WAVE_API_KEY found, making SigScore API request without authentication.")
+
+        response = requests.get(f"http://5.78.102.130:8000/sigscore/miners/average-participation?blocks={','.join(map(str, block_heights))}",
+                               headers=headers
+                              )
         response.raise_for_status()
         return response.json()
 

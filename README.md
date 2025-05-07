@@ -26,6 +26,9 @@ A Python-based tool for performing token airdrops and distributions on the Ergo 
 - Transaction batching for large airdrops
 - Real-time confirmation prompts
 - Explorer integration
+- Telegram notifications for distribution status
+- Unified CLI for multiple distribution services
+- Centralized configuration system
 
 ## Prerequisites
 
@@ -61,6 +64,60 @@ EXPLORER_URL=https://api.ergoplatform.com/api/v1
 NODE_API_KEY=your_node_api_key        # Required for node signing
 WALLET_ADDRESS=your_wallet_address    # Required for node signing
 WALLET_MNEMONIC=your_mnemonic_phrase  # Required for mnemonic signing
+```
+
+### Service-Specific Configuration Files
+
+#### For Bonus Service
+Copy `.env.bonus.sample` to `.env.bonus` and configure:
+```env
+# Node Configuration
+NODE_URL=http://localhost:9053/
+NODE_API_KEY=your_node_api_key_here
+NETWORK_TYPE=MAINNET
+EXPLORER_URL=https://api.ergoplatform.com/api/v1
+WALLET_ADDRESS=your_wallet_address_here
+WALLET_MNEMONIC=your_mnemonic_phrase  # Required for mnemonic signing
+
+# Telegram Notifications (optional)
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
+
+# Debug and Dry Run Mode
+DRY_RUN=false
+DEBUG=false
+```
+
+#### For Demurrage Service
+Copy `.env.demurrage.sample` to `.env.demurrage` and configure:
+```env
+# Node Configuration
+NODE_URL=http://localhost:9053/
+NODE_API_KEY=your_node_api_key_here
+NETWORK_TYPE=MAINNET
+EXPLORER_URL=https://api.ergoplatform.com/api/v1
+WALLET_ADDRESS=your_wallet_address_here
+WALLET_MNEMONIC=your_mnemonic_phrase  # Required for mnemonic signing
+
+# Service-Specific Settings
+MIN_BOX_VALUE=1000000
+TX_FEE=1000000
+WALLET_BUFFER=1000000
+POOL_FEE_PERCENTAGE=0.01
+POOL_FEE_ADDRESS=9iAFh6SzzSbowjsJPaRQwJfx4Ts4EzXt78UVGLgGaYTdab8SiEt
+MIN_CONFIRMATIONS=720
+
+# Telegram Notifications (optional)
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
+
+# Debug and Dry Run Mode
+DRY_RUN=false
+DEBUG=false
+
+# Schedule Settings
+DISTRIBUTION_SCHEDULE=0 0 * * *  # Daily at midnight (cron format)
+IMMEDIATE_RUN=false              # Run immediately on startup
 ```
 
 ### For MRP Service
@@ -126,7 +183,60 @@ For variable amounts per recipient:
 
 ## Usage
 
-### Basic Usage
+### Unified Distribution CLI
+
+The new unified CLI allows you to run both bonus and demurrage distributions with a single command:
+
+```bash
+# Using the shell script wrapper (recommended)
+./run_distribution.sh --service bonus --config-file bonus_config.json --dry-run
+./run_distribution.sh --service demurrage --run-once --dry-run
+
+# Or using the Python script directly
+python run_distribution.py --service bonus --config-file bonus_config.json --dry-run
+python run_distribution.py --service demurrage --run-once --dry-run
+```
+
+#### Common Command Line Options
+
+```
+--service {bonus,demurrage}   Type of distribution service to run
+--dry-run                     Run in dry-run mode without executing transactions
+--debug                       Enable debug logging
+--env-file PATH               Path to environment file (default: .env.bonus or .env.demurrage)
+--output-dir DIR              Directory to save distribution files (default: distributions)
+```
+
+#### Bonus Service Options
+
+```
+--config-file PATH            Path to bonus config JSON file (required)
+```
+
+#### Demurrage Service Options
+
+```
+--run-once                    Run once and exit instead of scheduling
+--schedule CRON               Cron-style schedule (default: "0 0 * * *")
+```
+
+#### Example Usage
+
+```bash
+# Run a dry-run bonus distribution
+./run_distribution.sh --service bonus --config-file bonus_config.json --dry-run
+
+# Run a one-time demurrage distribution
+./run_distribution.sh --service demurrage --run-once
+
+# Use a custom environment file
+./run_distribution.sh --service bonus --config-file bonus_config.json --env-file .env.custom
+
+# Enable debug logging
+./run_distribution.sh --service demurrage --run-once --debug
+```
+
+### Legacy Usage
 
 ```bash
 # Start MRP Service
@@ -154,6 +264,25 @@ python airdrop.py config.json --use-node --debug
 python airdrop.py config.json --use-node --headless
 ```
 
+## Telegram Notifications
+
+The system supports Telegram notifications for distribution status updates. To enable this feature:
+
+1. Create a Telegram bot using BotFather
+2. Get your bot token and admin chat ID
+3. Add these values to your environment file:
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_ADMIN_CHAT_ID=your_chat_id_here
+```
+
+Notifications will be sent for:
+- Distribution start
+- Successful completion (with transaction details)
+- Dry run completion (with distribution summary)
+- Failures (with error details)
+
 ## CSV Format
 
 When using a CSV file for recipients, use the following format:
@@ -178,7 +307,7 @@ Example with 500 blocks and 10% reduction:
 ## Security Considerations
 
 - Never share your mnemonic phrase or node API key
-- Always use the `--debug` flag first to verify distribution
+- Always use the `--dry-run` flag first to verify distribution
 - Keep your node wallet locked when not in use
 - Verify recipient addresses carefully
 - Monitor your wallet balance

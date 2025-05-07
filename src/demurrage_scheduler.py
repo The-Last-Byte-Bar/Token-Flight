@@ -15,26 +15,45 @@ from dotenv import load_dotenv
 from datetime import datetime
 import requests
 
-# Now import from src package
-from src.demurrage_distribution import (
-    BlockHeightCollector, 
-    load_env_config, 
-    ERG_TO_NANOERG,
-)
+# Import from src package
 from src.demurrage_service import DemurrageService
-from src.airdrop import BaseAirdrop
 from src.base_scheduler import BaseScheduler
+from src.config import AppConfig, load_config
+from src.telegram_notifier import notify_job_start, notify_job_result
 
+# Keep this function for backward compatibility
+def load_env_config(env_file='.env.demurrage'):
+    """Load environment variables from specified env file and return a dict (for backward compatibility)."""
+    env_path = Path(env_file)
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        logging.info(f"Loaded environment from {env_path}")
+    else:
+        logging.warning(f"Environment file {env_path} not found. Using existing environment variables.")
+    
+    # Return a simple dict of configured values
+    return {
+        'wallet_address': os.environ.get('WALLET_ADDRESS'),
+        'node_url': os.environ.get('NODE_URL'),
+        'explorer_url': os.environ.get('EXPLORER_URL'),
+        'network_type': os.environ.get('NETWORK_TYPE')
+    }
 
 class DemurrageScheduler(BaseScheduler):
-    def __init__(self, debug: bool = False):
+    def __init__(self, config: AppConfig = None, debug: bool = False):
         super().__init__(debug)
-        self.service = DemurrageService(debug=debug)
-        self.logger.info(f"Demurrage Scheduler initialized with debug: {debug}")
+        # Use provided config or load with demurrage service type
+        self.config = config or load_config(service_type='demurrage')
+        # Initialize service with config (debug flag will be taken from config)
+        self.service = DemurrageService(config=self.config)
+        self.logger.info(f"Demurrage Scheduler initialized with debug: {self.config.debug}")
 
     def run_job(self):
         self.logger.info("Starting demurrage job execution")
         try:
+            # Notify job start if configured
+            notify_job_start('demurrage', self.config.dry_run, self.config)
+            
             self.logger.info("Fetching blocks since last outgoing transaction")
             block_heights = self.service.collector.get_blocks_since_last_outgoing()
             
@@ -44,41 +63,65 @@ class DemurrageScheduler(BaseScheduler):
                 
             self.logger.info(f"Processing blocks: {block_heights}")
             
-            if self.debug:
-                self.logger.info("Debug mode - simulating distribution")
-                wallet_balance = self.service.get_wallet_balance()
-                self.logger.info(f"Current wallet balance: {wallet_balance} ERG")
-                
-                miners_data = self.service.collector.fetch_miners_data(block_heights)
-                recipient_count = len(miners_data.get('miners', []))
-                self.logger.info(f"Found {recipient_count} potential recipients")
-                
-                if recipient_count > 0:
-                    distribution_amount = self.service.calculate_distribution_amount(recipient_count)
-                    self.logger.info(f"Calculated distribution amount: {distribution_amount} ERG")
-                else:
-                    self.logger.info("No eligible recipients found")
-                return
+            # Execute distribution (will handle dry run internally)
+            self.logger.info(f"Executing distribution {'(DRY RUN)' if self.config.dry_run else ''}")
+            result = self.service.execute_distribution(block_heights)
             
-            # Execute actual distribution
-            self.logger.info("Executing distribution")
-            tx_id = self.service.execute_distribution(block_heights)
-            if tx_id:
-                self.logger.info(f"Distribution completed successfully. TX: {tx_id}")
+            # Notify about the result
+            notify_job_result('demurrage', result, self.config)
+            
+            # Log based on result status
+            if result.get('status') == 'completed':
+                self.logger.info(f"Distribution completed successfully. TX: {result.get('tx_id')}")
+            elif result.get('status') == 'dry_run':
+                self.logger.info("Dry run completed successfully.")
             else:
-                self.logger.warning("Distribution did not complete - no transaction ID returned")
+                self.logger.warning(f"Distribution failed: {result.get('error')}")
                 
         except ValueError as e:
             self.logger.error(f"Validation error in demurrage job: {e}")
+            # Notify about error
+            notify_job_result('demurrage', {
+                'status': 'failed',
+                'error': str(e),
+                'message': 'Validation error occurred'
+            }, self.config)
         except Exception as e:
             self.logger.error(f"Error in demurrage job: {e}", exc_info=True)
+            # Notify about error
+            notify_job_result('demurrage', {
+                'status': 'failed',
+                'error': str(e),
+                'message': 'Unexpected error occurred'
+            }, self.config)
 
 def setup_logging(verbose: bool):
+    # Configure root logger
     level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    
+    # Format with more detail
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # Remove any existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Add console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    # Set urllib3 and requests to WARNING level to reduce noise
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    
+    # Make sure our loggers are at the right level
+    logging.getLogger('src').setLevel(level)
+    
     return logging.getLogger(__name__)
 
 def parse_args():
@@ -121,13 +164,21 @@ def parse_args():
     )
     return parser.parse_args()
 
-def process_distribution(config: dict, dry_run: bool, output_dir: str, logger: logging.Logger):
+def process_distribution(dry_run: bool, output_dir: str, logger: logging.Logger, env_file: str = '.env.demurrage'):
     try:
-        logger.info(f"Starting distribution process {'(DRY RUN)' if dry_run else ''}")
+        # Set environment variables for the config system
+        os.environ['DRY_RUN'] = str(dry_run).lower()
         
-        # Initialize service
-        # Pass the dry_run flag to the service constructor
-        service = DemurrageService(debug=dry_run) 
+        # Load config with demurrage service type
+        config = load_config(service_type='demurrage')
+        
+        logger.info(f"Starting distribution process {'(DRY RUN)' if config.dry_run else ''}")
+        
+        # Notify job start
+        notify_job_start('demurrage', config.dry_run, config)
+        
+        # Initialize service with config
+        service = DemurrageService(config=config)
         
         # Get block heights and check if there are any to process
         block_heights = service.collector.get_blocks_since_last_outgoing()
@@ -137,62 +188,80 @@ def process_distribution(config: dict, dry_run: bool, output_dir: str, logger: l
             
         logger.info(f"Found {len(block_heights)} blocks to process since last outgoing transaction.")
         
-        # Let the service handle fetching miners, calculating, logging details, and executing/simulating
-        # The service now logs the detailed breakdown during its execution flow, including dry runs.
-        # It returns the distribution dict on dry run, or tx_id/None otherwise.
+        # Execute distribution (service handles dry run internally)
         result = service.execute_distribution(block_heights)
 
-        # --- Handling based on dry_run --- 
-        if dry_run:
-            # In dry run, the result should be the distribution dictionary
-            if isinstance(result, dict) and 'distributions' in result:
-                logger.info("--- DRY RUN COMPLETE ---")
-                logger.info("Distribution simulation finished. Details logged above by the service.")
+        # Notify about the result
+        notify_job_result('demurrage', result, config)
+
+        # --- Handle result based on status ---
+        if result.get('status') == 'dry_run':
+            # In dry run, save the distribution plan
+            logger.info("--- DRY RUN COMPLETE ---")
+            
+            # Save distribution file in dry run mode
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_file = Path(output_dir) / f"dry_run_distribution_{len(block_heights)}_blocks_{timestamp}.json"
+            try:
+                # Use the service's collector to save the JSON
+                service.collector.save_distribution_json(result.get('distributions', {}), output_file) 
+                logger.info(f"Dry run distribution plan saved to {output_file}")
+            except Exception as e:
+                logger.error(f"Failed to save dry run distribution file: {e}", exc_info=True)
                 
-                # Save distribution file in dry run mode
+        elif result.get('status') == 'completed':
+            # Successful live distribution
+            logger.info("--- DISTRIBUTION EXECUTED SUCCESSFULLY ---")
+            logger.info(f"Transaction ID: {result.get('tx_id')}")
+            
+            # Optionally save the distribution details
+            if 'distributions' in result:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                output_file = Path(output_dir) / f"dry_run_distribution_{len(block_heights)}_blocks_{timestamp}.json"
+                output_file = Path(output_dir) / f"distribution_{len(block_heights)}_blocks_{timestamp}.json"
                 try:
-                    # Use the service's collector to save the JSON (reuse existing method)
-                    service.collector.save_distribution_json(result, output_file) 
-                    logger.info(f"Dry run distribution plan saved to {output_file}")
+                    service.collector.save_distribution_json(result.get('distributions', {}), output_file)
+                    logger.info(f"Distribution details saved to {output_file}")
                 except Exception as e:
-                    logger.error(f"Failed to save dry run distribution file: {e}", exc_info=True)
-            elif result is None:
-                 logger.warning("Dry run failed or resulted in no distribution (e.g., insufficient balance, no recipients). See logs above.")
-            else:
-                 logger.warning(f"Dry run finished, but execute_distribution returned unexpected type: {type(result)}. Expected dict.")
+                    logger.error(f"Failed to save distribution file: {e}", exc_info=True)
         else:
-            # In actual run, the result should be a tx_id string or None
-            if isinstance(result, str):
-                logger.info(f"--- DISTRIBUTION EXECUTED SUCCESSFULLY ---")
-                logger.info(f"Transaction ID: {result}")
-                # Optionally save the distribution JSON after successful execution?
-                # If needed, would require execute_distribution to return both tx_id and distribution data
-                # or call a separate generation method first.
-            else:
-                logger.error("--- DISTRIBUTION EXECUTION FAILED ---")
-                logger.error("Distribution execution failed or did not return a transaction ID. See logs above for details.")
+            # Failed distribution
+            logger.error("--- DISTRIBUTION EXECUTION FAILED ---")
+            logger.error(f"Error: {result.get('error', 'Unknown error')}")
+            if 'message' in result:
+                logger.error(f"Message: {result['message']}")
             
     except Exception as e:
         # Catch any unexpected errors during the process_distribution flow itself
         logger.error(f"Unexpected error during distribution processing: {e}", exc_info=True)
+        
+        # Notify about error
+        try:
+            config = load_config(service_type='demurrage')
+            notify_job_result('demurrage', {
+                'status': 'failed',
+                'error': str(e),
+                'message': 'Unexpected error in process_distribution'
+            }, config)
+        except Exception as notify_err:
+            logger.error(f"Failed to send error notification: {notify_err}")
 
 def main():
     args = parse_args()
     logger = setup_logging(args.verbose)
     
-    # Load configuration
-    # load_env_config is still needed here to load the .env file specified
-    # although the config dict itself isn't directly used by process_distribution anymore.
-    config = load_env_config(args.env_file)
+    # Set environment variables based on args
+    os.environ['DRY_RUN'] = str(args.dry_run).lower()
+    os.environ['DEBUG'] = str(args.verbose).lower()
+    
+    # Load configuration from the args env file
+    load_dotenv(args.env_file, override=True)
     
     # Ensure output directory exists
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     
     if args.run_once:
         logger.info("Running single distribution process...")
-        process_distribution(config, args.dry_run, args.output_dir, logger)
+        process_distribution(args.dry_run, args.output_dir, logger, args.env_file)
         logger.info("Distribution process completed. Exiting...")
         return
     
@@ -206,16 +275,16 @@ def main():
     logger.warning(f"Note: Currently using schedule.every().day.at('00:00'). Custom schedule '{schedule_str}' NOT IMPLEMENTED.")
     schedule.every().day.at("00:00").do(
         process_distribution,
-        config=config, # Pass config even if unused, for potential future use
         dry_run=args.dry_run,
         output_dir=args.output_dir,
-        logger=logger
+        logger=logger,
+        env_file=args.env_file
     )
     
     # Run immediately if configured
     if os.getenv('IMMEDIATE_RUN', 'false').lower() == 'true':
         logger.info("Running immediate distribution based on IMMEDIATE_RUN env var...")
-        process_distribution(config, args.dry_run, args.output_dir, logger)
+        process_distribution(args.dry_run, args.output_dir, logger, args.env_file)
     
     # Keep the script running
     logger.info("Scheduler started. Waiting for scheduled jobs...")

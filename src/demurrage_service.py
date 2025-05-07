@@ -6,19 +6,21 @@ from dataclasses import dataclass
 from .demurrage_distribution import BlockHeightCollector
 from .base_airdrop import BaseAirdrop
 from .models import AirdropConfig, TokenConfig, WalletConfig, RecipientAmount
+from .config import AppConfig
 import os
 from decimal import Decimal, ROUND_DOWN
 
-# Define constants sourcing from environment variables with defaults
+# Define ERG to nanoERG conversion constant
 ERG_TO_NANOERG = int(1e9)
-# Use os.getenv to fetch these, matching demurrage_distribution.py
-MIN_BOX_VALUE = int(os.getenv('MIN_BOX_VALUE', 0.001 * ERG_TO_NANOERG))
-TX_FEE = int(os.getenv('TX_FEE', 0.001 * ERG_TO_NANOERG))
-WALLET_BUFFER = int(os.getenv('WALLET_BUFFER', 0.001 * ERG_TO_NANOERG))
 
-# Use the defaults defined in demurrage_distribution for consistency
-DEFAULT_POOL_FEE_PERCENTAGE = '0.01'
-DEFAULT_POOL_FEE_ADDRESS = "9iAFh6SzzSbowjsJPaRQwJfx4Ts4EzXt78UVGLgGaYTdab8SiEt"
+# Remove hardcoded constants - moved to ServiceSpecificConfig
+# MIN_BOX_VALUE = int(os.getenv('MIN_BOX_VALUE', 0.001 * ERG_TO_NANOERG))
+# TX_FEE = int(os.getenv('TX_FEE', 0.001 * ERG_TO_NANOERG))
+# WALLET_BUFFER = int(os.getenv('WALLET_BUFFER', 0.001 * ERG_TO_NANOERG))
+
+# Default pool fee settings moved to ServiceSpecificConfig in config.py
+# DEFAULT_POOL_FEE_PERCENTAGE = '0.01'
+# DEFAULT_POOL_FEE_ADDRESS = "9iAFh6SzzSbowjsJPaRQwJfx4Ts4EzXt78UVGLgGaYTdab8SiEt"
 
 @dataclass
 class Block:
@@ -27,41 +29,26 @@ class Block:
     created: str
 
 class DemurrageService:
-    def __init__(self, debug: bool = False):
-        # Use environment variable for API base with a default
-        self.api_url = os.getenv('ERGO_API_BASE', "https://api.ergoplatform.com/api/v1")
+    # Modify constructor to accept config instead of just debug flag
+    def __init__(self, config: AppConfig):
+        # Store the whole config object
+        self.config = config
+        self.api_url = config.apis.ergo_api_base
         self.logger = logging.getLogger(__name__)
-        self.debug = debug
+        self.debug = config.debug or config.dry_run # Either debug or dry_run flags will trigger simulation
         
-        # Configure wallet with mnemonic
-        node_url = os.getenv('NODE_URL')
-        network_type = os.getenv('NETWORK_TYPE')
-        explorer_url = os.getenv('EXPLORER_URL')
-        wallet_mnemonic = os.getenv('WALLET_MNEMONIC')
-        wallet_address = os.getenv('WALLET_ADDRESS')
-        
-        # Validate required env vars
-        if not node_url: raise ValueError("NODE_URL environment variable is required")
-        if not network_type: raise ValueError("NETWORK_TYPE environment variable is required")
-        if not explorer_url: raise ValueError("EXPLORER_URL environment variable is required")
-        if not wallet_mnemonic: raise ValueError("WALLET_MNEMONIC environment variable is required")
-        if not wallet_address: raise ValueError("WALLET_ADDRESS environment variable is required")
-        
+        # Create a models.WalletConfig from our AppConfig
         self.wallet_config = WalletConfig(
-            node_url=node_url,
-            network_type=network_type,
-            explorer_url=explorer_url,
-            wallet_mnemonic=wallet_mnemonic,
-            mnemonic_password=os.getenv('MNEMONIC_PASSWORD', ''),
-            node_wallet_address=wallet_address
+            node_url=config.node.url,
+            network_type=config.node.network_type,
+            explorer_url=config.node.explorer_url,
+            wallet_mnemonic=config.wallet.mnemonic,
+            mnemonic_password=config.wallet.mnemonic_password,
+            node_wallet_address=config.wallet.address
         )
         
-        # Initialize collector with wallet address from the config
-        # Removed the hardcoded address '9fE...'
-        self.collector = BlockHeightCollector(wallet_address=self.wallet_config.node_wallet_address)
-        # The check below is now redundant as BlockHeightCollector raises ValueError if no address is found
-        # if not self.collector.wallet_address:
-        #     raise ValueError("WALLET_ADDRESS environment variable is required")
+        # Initialize collector with the config object
+        self.collector = BlockHeightCollector(config=config)
 
     def get_wallet_balance(self) -> Decimal:
         """Returns the confirmed wallet balance as a Decimal in ERG."""
@@ -90,15 +77,20 @@ class DemurrageService:
         if recipient_count < 0:
              raise ValueError("Recipient count cannot be negative")
              
+        # Get values from config
+        min_box_value = self.config.service.min_box_value_nanoerg
+        tx_fee = self.config.service.tx_fee_nanoerg
+        wallet_buffer = self.config.service.wallet_buffer_nanoerg
+             
         # Calculate minimum box values needed for all recipients in nanoERG
-        min_box_total_nano = Decimal(MIN_BOX_VALUE) * Decimal(recipient_count)
+        min_box_total_nano = Decimal(min_box_value) * Decimal(recipient_count)
         
         # Total costs in nanoERG include:
         # 1. Minimum box values for all recipients
         # 2. Transaction fee
         # 3. Wallet buffer for future transactions
         # 4. Change box minimum value (assuming one is always needed)
-        total_costs_nano = min_box_total_nano + Decimal(TX_FEE) + Decimal(WALLET_BUFFER) + Decimal(MIN_BOX_VALUE)
+        total_costs_nano = min_box_total_nano + Decimal(tx_fee) + Decimal(wallet_buffer) + Decimal(min_box_value)
         
         # Convert to ERG (Decimal)
         total_costs_erg = (total_costs_nano / Decimal(ERG_TO_NANOERG)).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
@@ -116,12 +108,18 @@ class DemurrageService:
              return Decimal(0)
              
         total_costs_erg, min_box_total_erg = self.calculate_transaction_costs(recipient_count)
+        
+        # Get values from config for logging
+        min_box_value = self.config.service.min_box_value_nanoerg
+        tx_fee = self.config.service.tx_fee_nanoerg
+        wallet_buffer = self.config.service.wallet_buffer_nanoerg
+        
         self.logger.info(f"Transaction costs breakdown:")
-        self.logger.info(f"- Minimum box value per recipient: {Decimal(MIN_BOX_VALUE)/Decimal(ERG_TO_NANOERG):.8f} ERG")
+        self.logger.info(f"- Minimum box value per recipient: {Decimal(min_box_value)/Decimal(ERG_TO_NANOERG):.8f} ERG")
         self.logger.info(f"- Total minimum box values ({recipient_count} recipients): {min_box_total_erg:.8f} ERG")
-        self.logger.info(f"- Transaction fee: {Decimal(TX_FEE)/Decimal(ERG_TO_NANOERG):.8f} ERG")
-        self.logger.info(f"- Wallet buffer: {Decimal(WALLET_BUFFER)/Decimal(ERG_TO_NANOERG):.8f} ERG")
-        self.logger.info(f"- Change box min value: {Decimal(MIN_BOX_VALUE)/Decimal(ERG_TO_NANOERG):.8f} ERG")
+        self.logger.info(f"- Transaction fee: {Decimal(tx_fee)/Decimal(ERG_TO_NANOERG):.8f} ERG")
+        self.logger.info(f"- Wallet buffer: {Decimal(wallet_buffer)/Decimal(ERG_TO_NANOERG):.8f} ERG")
+        self.logger.info(f"- Change box min value: {Decimal(min_box_value)/Decimal(ERG_TO_NANOERG):.8f} ERG")
         self.logger.info(f"- Total estimated costs: {total_costs_erg:.8f} ERG")
         
         # This is the amount available for actual distribution (excluding min box values)
@@ -159,24 +157,24 @@ class DemurrageService:
 
             self.logger.info(f"Found {miner_count} eligible miner recipients")
             
-            # Pool fee configuration from environment variables
-            pool_fee_percentage_str = os.getenv('POOL_FEE_PERCENTAGE', DEFAULT_POOL_FEE_PERCENTAGE)
-            pool_fee_address = os.getenv('POOL_FEE_ADDRESS', DEFAULT_POOL_FEE_ADDRESS)
+            # Pool fee configuration from config
+            pool_fee_percentage_str = self.config.service.pool_fee_percentage
+            pool_fee_address = self.config.service.pool_fee_address
             
-            self.logger.debug(f"Pool Fee Config: Percentage Env='{pool_fee_percentage_str}', Address Env='{pool_fee_address}'")
+            self.logger.debug(f"Pool Fee Config from settings: Percentage='{pool_fee_percentage_str}', Address='{pool_fee_address}'")
             
             try:
                  pool_fee_percentage_dec = Decimal(pool_fee_percentage_str)
                  if not (0 <= pool_fee_percentage_dec <= 1):
-                      raise ValueError("POOL_FEE_PERCENTAGE must be between 0 and 1")
+                      raise ValueError("Pool fee percentage must be between 0 and 1")
             except ValueError as e:
-                 self.logger.error(f"Invalid POOL_FEE_PERCENTAGE '{pool_fee_percentage_str}': {e}. Using default {DEFAULT_POOL_FEE_PERCENTAGE}.", exc_info=True)
-                 pool_fee_percentage_dec = Decimal(DEFAULT_POOL_FEE_PERCENTAGE)
+                 self.logger.error(f"Invalid pool fee percentage '{pool_fee_percentage_str}': {e}. Using default from config.", exc_info=True)
+                 # Re-fetch from ServiceSpecificConfig default
+                 pool_fee_percentage_dec = Decimal(self.config.service.pool_fee_percentage)
                  
             if not pool_fee_address:
-                 self.logger.warning("POOL_FEE_ADDRESS environment variable not set or empty. Pool fee cannot be distributed.")
-                 # Proceed without pool fee? Or fail?
-                 # For now, assume pool fee is optional if address is missing.
+                 self.logger.warning("Pool fee address not configured. Pool fee cannot be distributed.")
+                 # Proceed without pool fee
                  pool_fee_percentage_dec = Decimal(0) # Set percentage to 0 if no address
 
             # Calculate costs and available amount considering potential pool fee recipient
@@ -298,16 +296,24 @@ class DemurrageService:
             )
             
             if self.debug:
-                self.logger.info("--- DEBUG MODE: SIMULATING TRANSACTION ---")
+                # This is now the dry run mode (triggered by either debug or dry_run in config)
+                dry_run_label = "DEBUG MODE" if self.config.debug else "DRY RUN MODE"
+                self.logger.info(f"--- {dry_run_label}: SIMULATING TRANSACTION ---")
                 self.logger.info(f"Would send to {len(recipients_for_airdrop)} recipients.")
                 self.logger.info(f"Total ERG in outputs: {calculated_total_erg:.8f} ERG")
                 # Log the calculated pool fee details explicitly during dry run
                 self.logger.info(f"Calculated Pool Fee Amount: {final_pool_fee_amount:.8f} ERG")
                 self.logger.info(f"Pool Fee Address: {final_pool_fee_address}")
-                # Simulate success in debug mode
                 self.logger.info("Distribution simulation completed successfully")
-                # Ensure we return the dictionary containing the plan
-                return distribution 
+                
+                # Return structured distribution information for potential notification
+                return {
+                    "status": "dry_run",
+                    "recipients_count": len(recipients_for_airdrop),
+                    "total_amount": float(calculated_total_erg),
+                    "distribution": distribution,
+                    "message": f"Dry run completed successfully. Would send {calculated_total_erg} ERG to {len(recipients_for_airdrop)} recipients."
+                }
             
             # Execute actual airdrop
             self.logger.info("Executing airdrop transaction...")
@@ -316,16 +322,39 @@ class DemurrageService:
             
             if result and result.status == "completed" and result.tx_id:
                  self.logger.info(f"Airdrop transaction successful. TX ID: {result.tx_id}")
-                 # On successful non-dry-run, return the tx_id
-                 return result.tx_id 
+                 # Return structured info for notification
+                 return {
+                     "status": "completed",
+                     "tx_id": result.tx_id,
+                     "explorer_url": f"{self.config.node.explorer_url}/transactions/{result.tx_id}",
+                     "recipients_count": len(recipients_for_airdrop),
+                     "total_amount": float(calculated_total_erg),
+                     "message": f"Sent {calculated_total_erg} ERG to {len(recipients_for_airdrop)} recipients. TX: {result.tx_id}"
+                 }
             else:
-                 self.logger.error(f"Airdrop transaction failed or did not return TX ID. Result: {result}")
-                 return None
+                 error_msg = f"Airdrop transaction failed or did not return TX ID. Result: {result}"
+                 self.logger.error(error_msg)
+                 # Return structured error for notification
+                 return {
+                     "status": "failed",
+                     "error": error_msg,
+                     "message": "Transaction failed. See logs for details."
+                 }
             
         except ValueError as ve:
             # Catch specific ValueErrors raised during calculations (e.g., insufficient balance)
-            self.logger.error(f"Distribution pre-check failed: {ve}")
-            return None
+            error_msg = f"Distribution pre-check failed: {ve}"
+            self.logger.error(error_msg)
+            return {
+                "status": "failed",
+                "error": str(ve),
+                "message": error_msg
+            }
         except Exception as e:
-            self.logger.error(f"Unexpected error during distribution execution: {e}", exc_info=True)
-            return None
+            error_msg = f"Unexpected error during distribution execution: {e}"
+            self.logger.error(error_msg, exc_info=True)
+            return {
+                "status": "failed",
+                "error": str(e),
+                "message": error_msg
+            }
