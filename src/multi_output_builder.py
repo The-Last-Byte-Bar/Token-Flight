@@ -12,11 +12,11 @@ from src.transaction_signer import TransactionSigner
 # Constants
 ERG_TO_NANOERG = 1e9
 MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG minimum box value
-FEE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG fee
+FEE = int(0.001 * ERG_TO_NANOERG)  # 0.001 ERG fee per transaction (not per recipient)
 
 
 # Protocol fee configuration
-PROTOCOL_FEE = int(0 * ERG_TO_NANOERG)  # 1 ERG
+PROTOCOL_FEE = int(0 * ERG_TO_NANOERG)  # 0 ERG
 PROTOCOL_FEE_ADDRESS = "9gPohoQooaGWbZbgTb1JrrqFWiTpM2zBknEwiyDANwmAtAne1Y8"  # Replace with actual protocol fee address
 
 @dataclass
@@ -105,7 +105,7 @@ class MultiOutputBuilder:
             self.wallet_manager.validate_addresses(sender_address)
             use_node, active_address = self.wallet_manager.get_signing_config()
             
-            # Calculate required amounts
+            # Calculate required amounts - only add FEE once for the whole transaction
             required_erg = sum(int(out.erg_value * ERG_TO_NANOERG) for out in outputs) + FEE
             required_tokens = {}
             for out in outputs:
@@ -116,6 +116,7 @@ class MultiOutputBuilder:
                         required_tokens[token_id] = required_tokens.get(token_id, 0) + amount
             
             self.logger.debug(f"Required ERG: {required_erg/ERG_TO_NANOERG}")
+            self.logger.debug(f"Transaction fee: {FEE/ERG_TO_NANOERG}")
             if required_tokens:
                 self.logger.debug(f"Required tokens: {required_tokens}")
             

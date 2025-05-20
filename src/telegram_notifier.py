@@ -120,22 +120,35 @@ class TelegramNotifier:
             tx_id = result.get('tx_id', 'Unknown')
             explorer_url = result.get('explorer_url', '')
             recipient_count = result.get('recipient_count', 0)
+            total_amount = result.get('total_amount', 0)
             
-            message += f"Transaction ID: <code>{tx_id}</code>\n"
+            message += f"<b>Transaction Details:</b>\n"
+            message += f"🔗 ID: <code>{tx_id}</code>\n"
             if explorer_url:
-                message += f"Explorer: {explorer_url}\n"
-            message += f"Recipients: {recipient_count}\n"
+                message += f"🔍 Explorer: {explorer_url}\n"
+            message += f"👥 Recipients: {recipient_count}\n"
+            if total_amount:
+                message += f"💰 Total Amount: {total_amount}\n"
             
             # Add distribution details if available
             distributions = result.get('distributions', [])
             if distributions:
-                message += "\n<b>Distribution Details:</b>\n"
+                message += "\n<b>Distribution Breakdown:</b>\n"
                 for dist in distributions:
                     token = dist.get('token', 'Unknown')
                     amount = dist.get('total_distributed', dist.get('total_amount', 0))
                     recipients = dist.get('recipients', 0)
                     amount_str = f"{amount:.8f}" if isinstance(amount, float) else str(amount)
-                    message += f"- {token}: {amount_str} to {recipients} recipients\n"
+                    message += f"• {token}:\n"
+                    message += f"  - Amount: {amount_str}\n"
+                    message += f"  - Recipients: {recipients}\n"
+                    
+            # Add timing information if available
+            if 'start_time' in result and 'end_time' in result:
+                start = result['start_time']
+                end = result['end_time']
+                duration = end - start
+                message += f"\n⏱ Duration: {duration:.2f} seconds"
                     
         elif status == 'dry_run':
             # Dry run completed
@@ -144,13 +157,18 @@ class TelegramNotifier:
             # Add distribution details
             token_count = result.get('token_count', 0)
             recipient_count = result.get('recipient_count', 0)
+            total_amount = result.get('total_amount', 0)
             
-            message += f"Would distribute to {recipient_count} recipients across {token_count} tokens\n"
+            message += f"<b>Summary:</b>\n"
+            message += f"🎯 Would distribute to {recipient_count} recipients\n"
+            message += f"🪙 Across {token_count} tokens\n"
+            if total_amount:
+                message += f"💰 Total Amount: {total_amount}\n"
             
             # Add details about each token distribution
             distributions = result.get('distributions', [])
             if distributions:
-                message += "\n<b>Distribution Details:</b>\n"
+                message += "\n<b>Distribution Plan:</b>\n"
                 for dist in distributions:
                     token = dist.get('token', 'Unknown')
                     amount_per = dist.get('amount_per', 0)
@@ -158,7 +176,17 @@ class TelegramNotifier:
                     total_dist = dist.get('total_distributed', 0)
                     amount_per_str = f"{amount_per:.8f}" if isinstance(amount_per, float) else str(amount_per)
                     total_dist_str = f"{total_dist:.8f}" if isinstance(total_dist, float) else str(total_dist)
-                    message += f"- {token}: {amount_per_str} each to {recipients} recipients (Total: {total_dist_str})\n"
+                    message += f"• {token}:\n"
+                    message += f"  - Per Recipient: {amount_per_str}\n"
+                    message += f"  - Recipients: {recipients}\n"
+                    message += f"  - Total: {total_dist_str}\n"
+                    
+            # Add any validation warnings if present
+            warnings = result.get('warnings', [])
+            if warnings:
+                message += "\n⚠️ <b>Warnings:</b>\n"
+                for warning in warnings:
+                    message += f"- {warning}\n"
                     
         else:
             # Failed distribution
@@ -167,11 +195,25 @@ class TelegramNotifier:
             # Add error details
             error_msg = result.get('error', 'Unknown error')
             custom_msg = result.get('message', '')
+            error_type = result.get('error_type', 'Unknown error type')
             
+            message += f"<b>Error Details:</b>\n"
+            if error_type:
+                message += f"Type: {error_type}\n"
             if custom_msg:
-                message += f"Error: {custom_msg}\n"
+                message += f"Message: {custom_msg}\n"
             else:
                 message += f"Error: {error_msg}\n"
+                
+            # Add any context that might be helpful
+            context = result.get('context', {})
+            if context:
+                message += "\n<b>Context:</b>\n"
+                for key, value in context.items():
+                    message += f"- {key}: {value}\n"
+        
+        # Add environment info
+        message += f"\n🌍 Environment: {'TEST' if result.get('dry_run', False) else 'PRODUCTION'}"
         
         return self.send_message(message)
 

@@ -21,8 +21,11 @@ def setup_logging(verbose: bool) -> logging.Logger:
     """Configure logging with appropriate level and format."""
     level = logging.DEBUG if verbose else logging.INFO
     
-    # Format with more detail
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # More detailed format for debug mode
+    if verbose:
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
+    else:
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -35,6 +38,7 @@ def setup_logging(verbose: bool) -> logging.Logger:
     # Add console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
+    console_handler.setLevel(level)  # Ensure handler level matches root logger
     root_logger.addHandler(console_handler)
     
     # Set urllib3 and requests to WARNING level to reduce noise
@@ -42,9 +46,18 @@ def setup_logging(verbose: bool) -> logging.Logger:
     logging.getLogger('requests').setLevel(logging.WARNING)
     
     # Make sure our loggers are at the right level
-    logging.getLogger('src').setLevel(level)
+    app_logger = logging.getLogger('src')
+    app_logger.setLevel(level)
     
-    return logging.getLogger('run_distribution')
+    # Create and configure the distribution logger
+    dist_logger = logging.getLogger('run_distribution')
+    dist_logger.setLevel(level)
+    
+    # Log the initial debug state
+    if verbose:
+        dist_logger.debug("Debug logging enabled")
+    
+    return dist_logger
 
 def parse_args():
     """Parse command line arguments."""
@@ -151,6 +164,10 @@ def run_demurrage_distribution(args, config: AppConfig, logger: logging.Logger) 
     Returns:
         Dict with result information
     """
+    # Log debug information about the configuration
+    logger.debug(f"Running demurrage distribution with config: dry_run={config.dry_run}")
+    logger.debug(f"Command line args: {vars(args)}")
+    
     # Ensure output directory exists
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     
@@ -175,6 +192,9 @@ def run_demurrage_distribution(args, config: AppConfig, logger: logging.Logger) 
         logger.info("Initializing demurrage service for one-time run")
         service = DemurrageService(config=config)
         
+        # Log service configuration
+        logger.debug(f"DemurrageService initialized with dry_run={service.config.dry_run}")
+        
         # Notify job start
         notify_job_start('demurrage', config.dry_run, config)
         
@@ -188,9 +208,12 @@ def run_demurrage_distribution(args, config: AppConfig, logger: logging.Logger) 
             }
             
         logger.info(f"Found {len(block_heights)} blocks to process since last outgoing transaction.")
+        logger.debug(f"Block heights to process: {block_heights}")
         
         # Execute the distribution
+        logger.debug("Executing distribution with dry_run=%s", config.dry_run)
         result = service.execute_distribution(block_heights)
+        logger.debug(f"Distribution result: {result}")
         
         # Notify about the result
         notify_job_result('demurrage', result, config)
@@ -215,11 +238,8 @@ def main():
     # Parse command line arguments
     args = parse_args()
     
-    # Setup logging
-    logger = setup_logging(args.debug)
-    
     try:
-        # Set environment variables based on arguments
+        # Set environment variables based on arguments BEFORE logging setup
         os.environ['DRY_RUN'] = str(args.dry_run).lower()
         os.environ['DEBUG'] = str(args.debug).lower()
         
@@ -232,14 +252,19 @@ def main():
         
         # Load environment file
         if Path(args.env_file).exists():
-            logger.info(f"Loading environment from {args.env_file}")
             load_dotenv(args.env_file, override=True)
-        else:
+        
+        # Setup logging AFTER environment variables are set
+        logger = setup_logging(args.debug)
+        logger.info(f"Starting {args.service} service with dry_run={args.dry_run}, debug={args.debug}")
+        
+        if not Path(args.env_file).exists():
             logger.warning(f"Environment file {args.env_file} not found. Using existing environment variables.")
         
         # Load configuration for the specified service
         config = load_config(service_type=args.service)
         logger.info(f"Loaded configuration for {args.service} service")
+        logger.debug(f"Configuration dry_run setting: {config.dry_run}")
         
         # Run the appropriate service
         if args.service == 'bonus':
@@ -268,11 +293,14 @@ def main():
             sys.exit(1)
             
     except ValueError as e:
-        logger.error(f"Validation error: {e}")
+        # Since logger might not be defined in case of early failure
+        if 'logger' in locals():
+            logger.error(f"Validation error: {e}")
         print(f"Error: {str(e)}")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
+        if 'logger' in locals():
+            logger.error(f"Unexpected error: {e}", exc_info=True)
         print(f"Unexpected error: {str(e)}")
         sys.exit(1)
 

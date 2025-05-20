@@ -18,13 +18,11 @@ from src.multi_output_builder import MultiOutputBuilder, OutputBox
 from src.recipient_manager import RecipientManager
 from src.ui.base_ui import BaseUI
 
-ERG_TO_NANOERG = 1e9
-MIN_BOX_VALUE = int(0.001 * ERG_TO_NANOERG)
-
+# Import constants from multi_output_builder to ensure consistency
 from src.multi_output_builder import (
     ERG_TO_NANOERG,
-    MIN_BOX_VALUE,
-    FEE,
+    MIN_BOX_VALUE,  # Minimum amount per output box (0.001 ERG)
+    FEE,  # Transaction fee for the entire transaction
     PROTOCOL_FEE,
     PROTOCOL_FEE_ADDRESS
 )
@@ -122,6 +120,9 @@ class BaseAirdrop:
             self.logger.debug(f"  ERG value: {erg_value}")
             if tokens:
                 self.logger.debug(f"  Tokens: {tokens}")
+            
+            # Note: erg_value already includes MIN_BOX_VALUE for each recipient
+            # The transaction fee (FEE) is applied once for the entire transaction in create_multi_output_tx
             
             if address in outputs:
                 self.logger.debug(f"  Updating existing output for {address}")
@@ -267,16 +268,14 @@ class BaseAirdrop:
                         self.logger.debug(f"  Token {token_id}: {amount}")
     
             # Calculate and log required amounts
-            tx_fee = FEE / ERG_TO_NANOERG
+            tx_fee = FEE / ERG_TO_NANOERG  # One fee for the entire transaction
             protocol_fee = PROTOCOL_FEE / ERG_TO_NANOERG
-            min_box_total = len(outputs) * (MIN_BOX_VALUE / ERG_TO_NANOERG)
             output_erg = sum(out.erg_value for out in outputs)
             
             self.logger.debug("Required ERG breakdown:")
-            self.logger.debug(f"  Transaction fee: {tx_fee}")
+            self.logger.debug(f"  Transaction fee: {tx_fee} (fixed per transaction)")
             self.logger.debug(f"  Protocol fee: {protocol_fee}")
-            self.logger.debug(f"  Minimum box total: {min_box_total}")
-            self.logger.debug(f"  Output ERG: {output_erg}")
+            self.logger.debug(f"  Output ERG total: {output_erg}")
             
             total_required_erg = output_erg + tx_fee + protocol_fee
             self.logger.debug(f"Total required ERG: {total_required_erg}")
